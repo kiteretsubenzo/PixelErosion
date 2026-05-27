@@ -1,16 +1,15 @@
-using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
-public class Test : MonoBehaviour
+public class Palette : MonoBehaviour
 {
     [SerializeField]
-    private TextAsset _problemSource;
+    private GameController _gameController;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        Board board = new Board(_problemSource.bytes);
-        Debug.Log(board);
+        
     }
 
     // Update is called once per frame
@@ -19,5 +18,8 @@ public class Test : MonoBehaviour
         
     }
 
-    
+    public void OnPointerDown(BaseEventData eventData)
+    {
+        _gameController.OnPointerDownPalette(eventData);
+    }
 }

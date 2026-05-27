@@ -8,6 +8,12 @@ public class Board
     private byte[][] _matrix = null;
     private Color32[] _palette = null;
 
+    public byte[][] Matrix { get { return _matrix; } }
+    public Color32[] Palette { get { return _palette; } }
+
+    public int Height { get { return _matrix.Length; } }
+    public int Width { get { return _matrix[0].Length; } }
+
     static readonly byte[] PNG_SIGNATURE = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
     private enum COLOR_TYPE
     {
@@ -52,7 +58,7 @@ public class Board
         {
             var chunk = readChunk(bytes, offset);
 
-            Debug.Log(chunk.name);
+            //Debug.Log(chunk.name);
 
             switch (chunk.name)
             {
@@ -65,8 +71,6 @@ public class Board
                         compressionMethod = chunk.data[10];
                         filterMethod = chunk.data[11];
                         interlaceMethod = chunk.data[12];
-
-                        Debug.Log($"{width} {height} {bitDepth} {colorType} {compressionMethod} {filterMethod} {interlaceMethod}");
 
                         if((colorType & (int)COLOR_TYPE.USE_PALETTE) == 0)
                         {
@@ -145,8 +149,6 @@ public class Board
 
         deflateStream.CopyTo(outputStream);
         byte[] decompressedImageBytes = outputStream.ToArray();
-
-
 
         int rowDataSize = ((int)width * bitDepth + 7) / 8;
         int stride = 1 + rowDataSize; // êÊì™1byteÇÕfilterType
