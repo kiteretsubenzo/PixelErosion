@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.EnhancedTouch;
 using UnityEngine.UI;
+using Random = UnityEngine.Random;
 
 public class GameController : MonoBehaviour
 {
@@ -17,7 +20,7 @@ public class GameController : MonoBehaviour
     private RectTransform _boardRectTransform;
 
     [SerializeField]
-    private Transform _palette;
+    private Transform _palettes;
 
     private Board _board;
 
@@ -29,7 +32,9 @@ public class GameController : MonoBehaviour
         _board = new Board(_problemSource.bytes);
         //Debug.Log(_board);
 
-        Apply();
+        NewApply(_boardImage);
+
+        RefreshColorAll();
     }
 
     // Update is called once per frame
@@ -40,12 +45,9 @@ public class GameController : MonoBehaviour
             return;
         }
 
-        if(IsPointerDown() == false)
+        // 離した
+        if (IsPointerDown() == false)
         {
-            // 離した
-            _selectedColor.GetChild(0).localPosition = Vector2.zero;
-            _selectedColor = null;
-
             // Board上で離したか
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 _boardRectTransform,
@@ -58,14 +60,49 @@ public class GameController : MonoBehaviour
             {
                 // Board外で離した
                 Debug.Log($"out");
-                return;
+            }
+            else
+            {
+                // Board上で離した
+                int x = (int)(localPosition.x + _boardRectTransform.rect.width / 2.0f);
+                int y = (int)(_boardRectTransform.rect.height - (localPosition.y + _boardRectTransform.rect.height / 2.0f));
+
+                Debug.Log($"( {x}, {y} )");
+
+                /*
+                byte[][] map = new byte[_board.Height][];
+                for (int i = 0; i < _board.Height; i++)
+                {
+                    map[i] = new byte[_board.Width];
+                }
+
+                if (_board.CalcAreaMap(x, y, ref map))
+                {
+                    System.Text.StringBuilder stringBuilder = new System.Text.StringBuilder();
+                    for (int yy = 0; yy < map.Length; yy++)
+                    {
+                        stringBuilder.AppendLine(string.Join(" ", map[yy]));
+                    }
+                    Debug.Log(stringBuilder.ToString());
+                }
+                else
+                {
+                    Debug.Log("null");
+                }
+                */
+
+                // 塗る
+                Palette palette = _selectedColor.GetComponent<Palette>();
+                _board.PaintArea(x, y, (byte)(palette.Index));
+                Apply(_boardImage);
+
+                // 色更新
+                RefreshColor(_selectedColor);
             }
 
-            // Board上で離した
-            int x = (int)(localPosition.x + _boardRectTransform.rect.width / 2.0f);
-            int y = (int)(_boardRectTransform.rect.height - (localPosition.y + _boardRectTransform.rect.height / 2.0f));
-
-            Debug.Log($"( {x}, {y} )");
+            // 選択解除
+            _selectedColor.GetChild(0).localPosition = Vector2.zero;
+            _selectedColor = null;
         }
         else
         {
@@ -76,12 +113,26 @@ public class GameController : MonoBehaviour
         }
     }
 
-    public void Apply()
+    public void NewApply(Image image)
     {
         Texture2D texture = new Texture2D(_board.Width, _board.Height, TextureFormat.RGBA32, false);
         texture.filterMode = FilterMode.Point;
         texture.wrapMode = TextureWrapMode.Clamp;
 
+        Sprite sprite = Sprite.Create(
+            texture,
+            new Rect(0, 0, _board.Width, _board.Height),
+            new Vector2(0.5f, 0.5f), 100f
+        );
+
+        image.sprite = sprite;
+        image.SetNativeSize();
+
+        Apply(image);
+    }
+
+    public void Apply(Image image)
+    {
         Color32[] pixels = new Color32[_board.Width * _board.Height];
 
         for (int y = 0; y < _board.Height; y++)
@@ -97,17 +148,8 @@ public class GameController : MonoBehaviour
             }
         }
 
-        texture.SetPixels32(pixels);
-        texture.Apply();
-
-        Sprite sprite = Sprite.Create(
-            texture,
-            new Rect(0, 0, _board.Width, _board.Height),
-            new Vector2(0.5f, 0.5f), 100f
-        );
-
-        _boardImage.sprite = sprite;
-        _boardImage.SetNativeSize();
+        _boardImage.sprite.texture.SetPixels32(pixels);
+        _boardImage.sprite.texture.Apply( false, false );
     }
 
     public void OnPointerDownPalette(BaseEventData eventData)
@@ -117,9 +159,51 @@ public class GameController : MonoBehaviour
         _selectedColor = pointerEventData.pointerEnter.transform.parent;
     }
 
-    private void RefreshColor(Transform colorTransform)
+    private void RefreshColorAll()
     {
+        List<byte> validIndices = _board.Matrix.SelectMany(row => row).Distinct().ToList();
 
+        foreach(Transform paletteTransform in _palettes)
+        {
+            int randomIndex = Random.Range(0, validIndices.Count);
+            byte index = validIndices[randomIndex];
+            validIndices.RemoveAt(randomIndex);
+
+            Palette palette = paletteTransform.GetComponent<Palette>();
+            palette.Index = index;
+            palette.Color = _board.Palette[index];
+        }
+    }
+
+    private void RefreshColor(Transform paletteTransform)
+    {
+        List<byte> validIndices = _board.Matrix.SelectMany(row => row).Distinct().ToList();
+
+        foreach (Transform transform in _palettes)
+        {
+            if(transform == paletteTransform)
+            {
+                continue;
+            }
+
+            validIndices.Remove((byte)transform.GetComponent<Palette>().Index);
+        }
+
+        if (validIndices.Count == 0)
+        {
+            Palette palette = paletteTransform.GetComponent<Palette>();
+            palette.Index = 0;
+            palette.Color = _board.Palette[0];
+        }
+        else
+        {
+            int randomIndex = Random.Range(0, validIndices.Count);
+            byte index = validIndices[randomIndex];
+
+            Palette palette = paletteTransform.GetComponent<Palette>();
+            palette.Index = index;
+            palette.Color = _board.Palette[index];
+        }
     }
 
     public static bool IsPointerDown()

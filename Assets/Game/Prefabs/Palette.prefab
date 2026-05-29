@@ -135,6 +135,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Palette
   _gameController: {fileID: 0}
+  _baseColor: {fileID: 6871355581330629278}
 --- !u!1 &5511405043235201707
 GameObject:
   m_ObjectHideFlags: 0
@@ -148,7 +149,7 @@ GameObject:
   - component: {fileID: 6871355581330629278}
   - component: {fileID: 529150797841869843}
   m_Layer: 5
-  m_Name: Color
+  m_Name: BaseColor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

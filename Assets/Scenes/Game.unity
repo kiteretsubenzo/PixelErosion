@@ -857,7 +857,7 @@ MonoBehaviour:
   _problemSource: {fileID: 4900000, guid: e19b7a9fbd5bd3a4faa350a94d8bef11, type: 3}
   _boardImage: {fileID: 550638817}
   _boardRectTransform: {fileID: 550638816}
-  _palette: {fileID: 0}
+  _palettes: {fileID: 1730641950}
 --- !u!4 &1396463977
 Transform:
   m_ObjectHideFlags: 0

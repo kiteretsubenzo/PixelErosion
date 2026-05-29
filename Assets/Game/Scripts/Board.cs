@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using UnityEngine;
@@ -7,6 +8,8 @@ public class Board
 {
     private byte[][] _matrix = null;
     private Color32[] _palette = null;
+
+    private byte[][] _map = null;   // 作業用
 
     public byte[][] Matrix { get { return _matrix; } }
     public Color32[] Palette { get { return _palette; } }
@@ -31,12 +34,22 @@ public class Board
         PAETH
     }
 
+    // エリア探索用
+    private enum DIRECTION
+    {
+        UP,
+        RIGHT,
+        DOWN,
+        LEFT,
+        BACK
+    }
+
     public Board(byte[] bytes)
     {
         uint offset = 0;
 
         // ファイルヘッダ解析
-        if( bytes.AsSpan(0, PNG_SIGNATURE.Length).SequenceEqual(PNG_SIGNATURE) == false )
+        if (bytes.AsSpan(0, PNG_SIGNATURE.Length).SequenceEqual(PNG_SIGNATURE) == false)
         {
             return;
         }
@@ -72,7 +85,7 @@ public class Board
                         filterMethod = chunk.data[11];
                         interlaceMethod = chunk.data[12];
 
-                        if((colorType & (int)COLOR_TYPE.USE_PALETTE) == 0)
+                        if ((colorType & (int)COLOR_TYPE.USE_PALETTE) == 0)
                         {
                             return;
                         }
@@ -188,7 +201,7 @@ public class Board
                     byte[] rowData = decompressedImageBytes.AsSpan(rowOffset + 1, rowDataSize).ToArray();
 
                     UnfilterRow(filterType, rowData, previousRow, 1);
-                    
+
                     for (int x = 0; x < width; x++)
                     {
                         byte packed = rowData[x / 4];
@@ -209,7 +222,7 @@ public class Board
                     byte[] rowData = decompressedImageBytes.AsSpan(rowOffset + 1, rowDataSize).ToArray();
 
                     UnfilterRow(filterType, rowData, previousRow, 1);
-                    
+
                     for (int x = 0; x < width; x++)
                     {
                         byte packed = rowData[x / 2];
@@ -230,7 +243,7 @@ public class Board
                     byte[] rowData = decompressedImageBytes.AsSpan(rowOffset + 1, rowDataSize).ToArray();
 
                     UnfilterRow(filterType, rowData, previousRow, 1);
-                    
+
                     for (int x = 0; x < width; x++)
                     {
                         _matrix[y][x] = rowData[x];
@@ -241,6 +254,12 @@ public class Board
                 break;
             default:
                 break;
+        }
+
+        _map = new byte[height][];
+        for (int y = 0; y < height; y++)
+        {
+            _map[y] = new byte[width];
         }
     }
 
@@ -310,6 +329,137 @@ public class Board
                     break;
                 default:
                     throw new Exception($"Unknown PNG filter type: {filterType}");
+            }
+        }
+    }
+
+    public void PaintArea(int x, int y, byte index)
+    {
+        if (x < 0 || Width <= x || y < 0 || Height <= y)
+        {
+            return;
+        }
+
+        CalcAreaMap(x, y, ref _map);
+
+        for(int j = 0; j < Height; j++)
+        {
+            for(int i = 0; i < Width; i++)
+            {
+                if(_map[j][i] == 1)
+                {
+                    _matrix[j][i] = index;
+                }
+            }
+        }
+    }
+
+    public bool CalcAreaMap(int x, int y, ref byte[][] map)
+    {
+        if (x < 0 || Width <= x || y < 0 || Height <= y)
+        {
+            return false;
+        }
+
+        if(map == null || map.Length != Height || map[0].Length != Width)
+        {
+            return false;
+        }
+
+        int target = _matrix[y][x];
+
+        for(int i=0; i<Height; i++)
+        {
+            map[i] = new byte[Width];
+        }
+
+        List<DIRECTION> stack = new List<DIRECTION>();
+
+        map[y][x] = 1;
+        stack.Add(DIRECTION.UP);
+
+        while (true)
+        {
+            switch(stack[stack.Count - 1])
+            {
+                case DIRECTION.UP:
+                    if( 0 <= y - 1 && _matrix[y - 1][x] == target && map[y - 1][x] == 0 )
+                    {
+                        y -= 1;
+                        map[y][x] = 1;
+                        stack.Add(DIRECTION.UP);
+                    }
+                    else
+                    {
+                        stack[stack.Count - 1] = DIRECTION.RIGHT;
+                    }
+                    break;
+                case DIRECTION.RIGHT:
+                    if (x + 1 < Width && _matrix[y][x + 1] == target && map[y][x + 1] == 0)
+                    {
+                        x += 1;
+                        map[y][x] = 1;
+                        stack.Add(DIRECTION.UP);
+                    }
+                    else
+                    {
+                        stack[stack.Count - 1] = DIRECTION.DOWN;
+                    }
+                    break;
+                case DIRECTION.DOWN:
+                    if (y + 1 < Height && _matrix[y + 1][x] == target && map[y + 1][x] == 0)
+                    {
+                        y += 1;
+                        map[y][x] = 1;
+                        stack.Add(DIRECTION.UP);
+                    }
+                    else
+                    {
+                        stack[stack.Count - 1] = DIRECTION.LEFT;
+                    }
+                    break;
+                case DIRECTION.LEFT:
+                    if (0 <= x - 1 && _matrix[y][x - 1] == target && map[y][x - 1] == 0)
+                    {
+                        x -= 1;
+                        map[y][x] = 1;
+                        stack.Add(DIRECTION.UP);
+                    }
+                    else
+                    {
+                        stack[stack.Count - 1] = DIRECTION.BACK;
+                    }
+                    break;
+                case DIRECTION.BACK:
+                    stack.RemoveAt(stack.Count - 1);
+                    
+                    if (stack.Count == 0)
+                    {
+                        return true;
+                    }
+                    
+                    switch (stack[stack.Count - 1])
+                    {
+                        case DIRECTION.UP:
+                            y += 1;
+                            stack[stack.Count - 1] = DIRECTION.RIGHT;
+                            break;
+                        case DIRECTION.RIGHT:
+                            x -= 1; stack[stack.Count - 1] = DIRECTION.DOWN;
+                            break;
+                        case DIRECTION.DOWN:
+                            y -= 1;
+                            stack[stack.Count - 1] = DIRECTION.LEFT;
+                            break;
+                        case DIRECTION.LEFT:
+                            x += 1;
+                            stack[stack.Count - 1] = DIRECTION.BACK;
+                            break;
+                        default:
+                            return false;
+                    }
+                    break;
+                default: return false;
             }
         }
     }
