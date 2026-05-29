@@ -60,6 +60,7 @@ public class GameController : MonoBehaviour
             {
                 // BoardŠO‚Å—£‚µ‚½
                 Debug.Log($"out");
+                _selectedColor.GetComponent<Palette>().State = Palette.STATE.CANCEL;
             }
             else
             {
@@ -106,10 +107,13 @@ public class GameController : MonoBehaviour
         }
         else
         {
+            /*
             Transform cursorTransform = _selectedColor.GetChild(0);
             RectTransform cursorRectTransform = cursorTransform.GetComponent<RectTransform>();
             Vector2 cursorSize = cursorRectTransform.rect.size;
             cursorTransform.position = GetPointerPosition() + new Vector2(cursorSize.x * 0.5f + 16.0f, cursorSize.y * 0.5f + 16.0f);
+            */
+            _selectedColor.GetComponent<Palette>().SetCursorPosition(GetPointerPosition());
         }
     }
 
@@ -156,7 +160,16 @@ public class GameController : MonoBehaviour
     {
         PointerEventData pointerEventData = (PointerEventData)eventData;
 
-        _selectedColor = pointerEventData.pointerEnter.transform.parent;
+
+        Palette palette = pointerEventData.pointerEnter.transform.parent.GetComponent<Palette>();
+
+        if(palette.State != Palette.STATE.IDLE)
+        {
+            return;
+        }
+
+        _selectedColor = palette.transform;
+        palette.SetGrab();
     }
 
     private void RefreshColorAll()
@@ -170,8 +183,7 @@ public class GameController : MonoBehaviour
             validIndices.RemoveAt(randomIndex);
 
             Palette palette = paletteTransform.GetComponent<Palette>();
-            palette.Index = index;
-            palette.Color = _board.Palette[index];
+            palette.SetColor(index, _board.Palette[index]);
         }
     }
 
@@ -189,11 +201,12 @@ public class GameController : MonoBehaviour
             validIndices.Remove((byte)transform.GetComponent<Palette>().Index);
         }
 
+        validIndices.Remove((byte)paletteTransform.GetComponent<Palette>().Index);
+
         if (validIndices.Count == 0)
         {
             Palette palette = paletteTransform.GetComponent<Palette>();
-            palette.Index = 0;
-            palette.Color = _board.Palette[0];
+            palette.State = Palette.STATE.EMPTY;
         }
         else
         {
@@ -201,8 +214,7 @@ public class GameController : MonoBehaviour
             byte index = validIndices[randomIndex];
 
             Palette palette = paletteTransform.GetComponent<Palette>();
-            palette.Index = index;
-            palette.Color = _board.Palette[index];
+            palette.SetColor(index, _board.Palette[index]);
         }
     }
 
