@@ -17,22 +17,30 @@ public class GameController : MonoBehaviour
     private Image _boardImage;
 
     [SerializeField]
+    private Image _boardSubImage;
+
+    [SerializeField]
     private RectTransform _boardRectTransform;
 
     [SerializeField]
     private Transform _palettes;
 
     private Board _board;
+    private Board _boardSub;
 
     private Transform _selectedColor = null;
+
+    // アロケート回避用
+    private static Color32[] _pixels = null;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         _board = new Board(_problemSource.bytes);
+        _boardSub = new Board();
         //Debug.Log(_board);
 
-        NewApply(_boardImage);
+        Apply(_board, _boardImage);
 
         RefreshColorAll();
     }
@@ -93,9 +101,20 @@ public class GameController : MonoBehaviour
                 */
 
                 // 塗る
+                // バックアップとる
+                _boardSub.Copy(_board);
+
+                // 実際に塗る
                 Palette palette = _selectedColor.GetComponent<Palette>();
                 _board.PaintArea(x, y, (byte)(palette.Index));
-                Apply(_boardImage);
+                Apply(_board, _boardImage);
+
+                // Mapを更新
+                _board.CalcAreaMap(x, y);
+
+                // Mapのとこだけapply
+                Apply(_boardSub, _boardSubImage, _board.Map);
+                //_boardSubImage.gameObject.SetActive(true);
 
                 // 色更新
                 RefreshColor(_selectedColor);
@@ -117,43 +136,51 @@ public class GameController : MonoBehaviour
         }
     }
 
-    public void NewApply(Image image)
+    public static void Apply(Board board, Image image, in byte[][] map = null)
     {
-        Texture2D texture = new Texture2D(_board.Width, _board.Height, TextureFormat.RGBA32, false);
-        texture.filterMode = FilterMode.Point;
-        texture.wrapMode = TextureWrapMode.Clamp;
-
-        Sprite sprite = Sprite.Create(
-            texture,
-            new Rect(0, 0, _board.Width, _board.Height),
-            new Vector2(0.5f, 0.5f), 100f
-        );
-
-        image.sprite = sprite;
-        image.SetNativeSize();
-
-        Apply(image);
-    }
-
-    public void Apply(Image image)
-    {
-        Color32[] pixels = new Color32[_board.Width * _board.Height];
-
-        for (int y = 0; y < _board.Height; y++)
+        if(image.sprite == null || image.sprite.texture == null || image.sprite.texture.width != board.Width || image.sprite.texture.height != board.Height)
         {
-            for (int x = 0; x < _board.Width; x++)
+            Texture2D texture = new Texture2D(board.Width, board.Height, TextureFormat.RGBA32, false);
+            texture.filterMode = FilterMode.Point;
+            texture.wrapMode = TextureWrapMode.Clamp;
+
+            Sprite sprite = Sprite.Create(
+                texture,
+                new Rect(0, 0, board.Width, board.Height),
+                new Vector2(0.5f, 0.5f), 100f
+            );
+
+            image.sprite = sprite;
+            image.SetNativeSize();
+        }
+
+        if(_pixels == null || _pixels.Length != (board.Width * board.Height))
+        {
+            _pixels = new Color32[board.Width * board.Height];
+        }
+
+        for (int y = 0; y < board.Height; y++)
+        {
+            for (int x = 0; x < board.Width; x++)
             {
-                byte paletteIndex = _board.Matrix[y][x];
+                byte paletteIndex = board.Matrix[y][x];
 
                 // UnityのTexture2Dは左下原点なので上下反転
-                int textureY = _board.Height - 1 - y;
+                int textureY = board.Height - 1 - y;
 
-                pixels[textureY * _board.Width + x] = _board.Palette[paletteIndex];
+                if (map != null && map[y][x] == 0)
+                {
+                    _pixels[textureY * board.Width + x] = Color.clear;
+                }
+                else
+                {
+                    _pixels[textureY * board.Width + x] = board.Palette[paletteIndex];
+                }
             }
         }
 
-        _boardImage.sprite.texture.SetPixels32(pixels);
-        _boardImage.sprite.texture.Apply( false, false );
+        image.sprite.texture.SetPixels32(_pixels);
+        image.sprite.texture.Apply( false, false );
     }
 
     public void OnPointerDownPalette(BaseEventData eventData)

@@ -9,13 +9,14 @@ public class Board
     private byte[][] _matrix = null;
     private Color32[] _palette = null;
 
-    private byte[][] _map = null;   // çÏã∆óp
+    private byte[][] _map = null;
+    public byte[][] Map { get { return _map; } }
 
     public byte[][] Matrix { get { return _matrix; } }
     public Color32[] Palette { get { return _palette; } }
 
-    public int Height { get { return _matrix.Length; } }
-    public int Width { get { return _matrix[0].Length; } }
+    public int Height { get { return _matrix == null ? -1 : _matrix.Length; } }
+    public int Width { get { return _matrix == null ? -1 : _matrix[0].Length; } }
 
     static readonly byte[] PNG_SIGNATURE = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
     private enum COLOR_TYPE
@@ -42,6 +43,11 @@ public class Board
         DOWN,
         LEFT,
         BACK
+    }
+
+    public Board()
+    {
+
     }
 
     public Board(byte[] bytes)
@@ -333,6 +339,49 @@ public class Board
         }
     }
 
+    public void Copy(Board board)
+    {
+        if (board.Matrix == null)
+        {
+            _matrix = null;
+        }
+        else
+        {
+            if (board.Width != Width || board.Height != Height)
+            {
+                _matrix = new byte[board.Height][];
+
+                for (int y = 0; y < board.Matrix.Length; y++)
+                {
+                    _matrix[y] = (byte[])board.Matrix[y].Clone();
+                }
+            }
+            else
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    Array.Copy(board.Matrix[y], _matrix[y], Width);
+                }
+            }
+        }
+
+        if (board.Palette == null)
+        {
+            _palette = null;
+        }
+        else
+        {
+            if(_palette == null || _palette.Length != board.Palette.Length)
+            {
+                _palette = (Color32[])board.Palette.Clone();
+            }
+            else
+            {
+                Array.Copy(board.Palette, _palette, _palette.Length);
+            }
+        }
+    }
+
     public void PaintArea(int x, int y, byte index)
     {
         if (x < 0 || Width <= x || y < 0 || Height <= y)
@@ -340,13 +389,13 @@ public class Board
             return;
         }
 
-        CalcAreaMap(x, y, ref _map);
+        CalcAreaMap(x, y);
 
         for(int j = 0; j < Height; j++)
         {
             for(int i = 0; i < Width; i++)
             {
-                if(_map[j][i] == 1)
+                if(Map[j][i] == 1)
                 {
                     _matrix[j][i] = index;
                 }
@@ -354,28 +403,35 @@ public class Board
         }
     }
 
-    public bool CalcAreaMap(int x, int y, ref byte[][] map)
+    public void CalcAreaMap(int x, int y)
     {
         if (x < 0 || Width <= x || y < 0 || Height <= y)
         {
-            return false;
+            _map = null;
+            return;
         }
 
-        if(map == null || map.Length != Height || map[0].Length != Width)
+        if(_map == null || _map.Length != Height || _map[0].Length != Width)
         {
-            return false;
+            _map = new byte[Height][];
+            for (int j = 0; j < Height; j++)
+            {
+                _map[j] = new byte[Width];
+            }
+        }
+        else
+        {
+            for (int j = 0; j < Height; j++)
+            {
+                Array.Clear(_map[j], 0, _map[j].Length);
+            }
         }
 
         int target = _matrix[y][x];
 
-        for(int i=0; i<Height; i++)
-        {
-            map[i] = new byte[Width];
-        }
-
         List<DIRECTION> stack = new List<DIRECTION>();
 
-        map[y][x] = 1;
+        _map[y][x] = 1;
         stack.Add(DIRECTION.UP);
 
         while (true)
@@ -383,10 +439,10 @@ public class Board
             switch(stack[stack.Count - 1])
             {
                 case DIRECTION.UP:
-                    if( 0 <= y - 1 && _matrix[y - 1][x] == target && map[y - 1][x] == 0 )
+                    if( 0 <= y - 1 && _matrix[y - 1][x] == target && _map[y - 1][x] == 0 )
                     {
                         y -= 1;
-                        map[y][x] = 1;
+                        _map[y][x] = 1;
                         stack.Add(DIRECTION.UP);
                     }
                     else
@@ -395,10 +451,10 @@ public class Board
                     }
                     break;
                 case DIRECTION.RIGHT:
-                    if (x + 1 < Width && _matrix[y][x + 1] == target && map[y][x + 1] == 0)
+                    if (x + 1 < Width && _matrix[y][x + 1] == target && _map[y][x + 1] == 0)
                     {
                         x += 1;
-                        map[y][x] = 1;
+                        _map[y][x] = 1;
                         stack.Add(DIRECTION.UP);
                     }
                     else
@@ -407,10 +463,10 @@ public class Board
                     }
                     break;
                 case DIRECTION.DOWN:
-                    if (y + 1 < Height && _matrix[y + 1][x] == target && map[y + 1][x] == 0)
+                    if (y + 1 < Height && _matrix[y + 1][x] == target && _map[y + 1][x] == 0)
                     {
                         y += 1;
-                        map[y][x] = 1;
+                        _map[y][x] = 1;
                         stack.Add(DIRECTION.UP);
                     }
                     else
@@ -419,10 +475,10 @@ public class Board
                     }
                     break;
                 case DIRECTION.LEFT:
-                    if (0 <= x - 1 && _matrix[y][x - 1] == target && map[y][x - 1] == 0)
+                    if (0 <= x - 1 && _matrix[y][x - 1] == target && _map[y][x - 1] == 0)
                     {
                         x -= 1;
-                        map[y][x] = 1;
+                        _map[y][x] = 1;
                         stack.Add(DIRECTION.UP);
                     }
                     else
@@ -435,7 +491,7 @@ public class Board
                     
                     if (stack.Count == 0)
                     {
-                        return true;
+                        return;
                     }
                     
                     switch (stack[stack.Count - 1])
@@ -456,10 +512,13 @@ public class Board
                             stack[stack.Count - 1] = DIRECTION.BACK;
                             break;
                         default:
-                            return false;
+                            _map = null;
+                            return;
                     }
                     break;
-                default: return false;
+                default:
+                    _map = null;
+                    return;
             }
         }
     }
