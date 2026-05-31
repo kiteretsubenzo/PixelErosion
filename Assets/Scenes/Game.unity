@@ -432,7 +432,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 2100000, guid: 2acc300db74f29940a5310b0dbf24ace, type: 2}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
@@ -699,7 +699,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 2100000, guid: 2acc300db74f29940a5310b0dbf24ace, type: 2}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
@@ -966,7 +966,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5e642b8b2f20b6c4e97c895c0781726f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Test
-  _problemSource: {fileID: 4900000, guid: f26227ed26602344e9b4cb136927314c, type: 3}
+  _problemSource: {fileID: 4900000, guid: e19b7a9fbd5bd3a4faa350a94d8bef11, type: 3}
   _boardImage: {fileID: 550638817}
   _boardSubImage: {fileID: 1046745170}
   _boardRectTransform: {fileID: 550638816}

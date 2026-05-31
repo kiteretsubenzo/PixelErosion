@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -33,6 +34,10 @@ public class GameController : MonoBehaviour
     // アロケート回避用
     private static Color32[] _pixels = null;
 
+    // ディゾルブ用
+    private Material _boardSubMaterialInstance;
+    private Coroutine _dissolveCoroutine = null;
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -41,6 +46,9 @@ public class GameController : MonoBehaviour
         //Debug.Log(_board);
 
         Apply(_board, _boardImage);
+
+        _boardSubMaterialInstance = Instantiate(_boardSubImage.material);
+        _boardSubImage.material = _boardSubMaterialInstance;
 
         RefreshColorAll();
     }
@@ -64,10 +72,9 @@ public class GameController : MonoBehaviour
                 out Vector2 localPosition
             );
 
-            if (_boardRectTransform.rect.Contains(localPosition) == false)
+            if (_boardRectTransform.rect.Contains(localPosition) == false || _dissolveCoroutine != null)
             {
-                // Board外で離した
-                Debug.Log($"out");
+                // Board外で離したまたはアニメーション中
                 _selectedColor.GetComponent<Palette>().State = Palette.STATE.CANCEL;
             }
             else
@@ -115,6 +122,8 @@ public class GameController : MonoBehaviour
                 // Mapのとこだけapply
                 Apply(_boardSub, _boardSubImage, _board.Map);
                 //_boardSubImage.gameObject.SetActive(true);
+
+                _dissolveCoroutine = StartCoroutine(DoDissolve(new Vector2((float)x / _board.Width, (float)y / _board.Height)));
 
                 // 色更新
                 RefreshColor(_selectedColor);
@@ -199,6 +208,33 @@ public class GameController : MonoBehaviour
         palette.SetGrab();
     }
 
+    private IEnumerator DoDissolve(Vector2 uv)
+    {
+        float startTime = Time.time;
+
+        _boardSubImage.gameObject.SetActive(true);
+
+        _boardSubImage.material.SetVector("_UV", uv);
+
+        while (true)
+        {
+            float rate = Mathf.Min(1.0f, (Time.time - startTime) / 0.5f);
+
+            _boardSubImage.material.SetFloat("_Emission", 1.0f - rate);
+
+            if (0.99f < rate)
+            {
+                break;
+            }
+
+            yield return null;
+        }
+
+        _boardSubImage.gameObject.SetActive(false);
+
+        _dissolveCoroutine = null;
+    }
+
     private void RefreshColorAll()
     {
         List<byte> validIndices = _board.Matrix.SelectMany(row => row).Distinct().ToList();
@@ -277,5 +313,14 @@ public class GameController : MonoBehaviour
         }
 
         return Vector2.zero;
+    }
+
+    public void OnDestroy()
+    {
+        if(_dissolveCoroutine != null)
+        {
+            StopCoroutine(_dissolveCoroutine);
+            _dissolveCoroutine = null;
+        }
     }
 }
