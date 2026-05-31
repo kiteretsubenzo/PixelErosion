@@ -30,8 +30,18 @@ public class EditController : MonoBehaviour
     [SerializeField]
     private Transform _paletteTransform;
 
+    [SerializeField]
+    private ToggleGroup _paletteToggleGroup;
+
+    [SerializeField]
+    private Toggle _ditherToggle;
+
+    [SerializeField]
+    private Image _reductionedImage;
+
     private Texture2D _sourceTexture;
     private Texture2D _resizedTexture;
+    private Texture2D _reductionedTexture;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -223,7 +233,6 @@ public class EditController : MonoBehaviour
     public void OnChangePaletteCount()
     {
         Color32[] colors = GeneratePalette(_resizedTexture, int.Parse(_inputPaletteCount.text));
-        Debug.Log(string.Join(", ", colors));
 
         for (int index = _paletteTransform.childCount - 1; index >= 0; index--)
         {
@@ -233,9 +242,185 @@ public class EditController : MonoBehaviour
         foreach (Color32 color in colors)
         {
             GameObject gameObject = Instantiate(_colorPrefab, _paletteTransform);
+            gameObject.GetComponent<Toggle>().group = _paletteToggleGroup;
             gameObject.transform.GetChild(0).GetComponent<Image>().color = color;
         }
     }
+
+    public void Reduction()
+    {
+        Color32[] palette = new Color32[_paletteTransform.childCount];
+
+        for(int i=0; i<_paletteTransform.childCount; i++)
+        {
+            palette[i] = _paletteTransform.GetChild(i).GetChild(0).GetComponent<Image>().color;
+        }
+
+        if(_ditherToggle.isOn)
+        {
+            _reductionedTexture = ReduceWithFloydSteinbergDither(_resizedTexture, palette);
+        }
+        else
+        {
+            _reductionedTexture = ReduceWithoutDither(_resizedTexture, palette);
+        }
+
+        Sprite sprite = Sprite.Create(_reductionedTexture, new Rect(0, 0, _reductionedTexture.width, _reductionedTexture.height), new Vector2(0.5f, 0.5f), 100f);
+
+        _reductionedImage.sprite = sprite;
+        _reductionedImage.SetNativeSize();
+
+        RectTransform reductionedImageRectTransform = _reductionedImage.GetComponent<RectTransform>();
+        RectTransform parentRectTransform = _reductionedImage.transform.parent.GetComponent<RectTransform>();
+
+        float parentHeight = parentRectTransform.rect.height;
+        float aspectRatio = (float)_reductionedTexture.width / _reductionedTexture.height;
+        float previewWidth = parentHeight * aspectRatio;
+
+        reductionedImageRectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, parentHeight);
+        reductionedImageRectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, previewWidth);
+    }
+
+    private static Texture2D ReduceWithoutDither(Texture2D sourceTexture, Color32[] palette)
+    {
+        Color32[] sourcePixels = sourceTexture.GetPixels32();
+        Color32[] destinationPixels = new Color32[sourcePixels.Length];
+
+        for (int index = 0; index < sourcePixels.Length; index++)
+        {
+            destinationPixels[index] = FindNearestColor(sourcePixels[index], palette);
+        }
+
+        Texture2D destinationTexture = new Texture2D( sourceTexture.width, sourceTexture.height, TextureFormat.RGBA32, false);
+
+        destinationTexture.filterMode = FilterMode.Point;
+        destinationTexture.wrapMode = TextureWrapMode.Clamp;
+        destinationTexture.SetPixels32(destinationPixels);
+        destinationTexture.Apply();
+
+        return destinationTexture;
+    }
+
+    private static Texture2D ReduceWithFloydSteinbergDither(Texture2D sourceTexture, Color32[] palette)
+    {
+        int width = sourceTexture.width;
+        int height = sourceTexture.height;
+
+        Color32[] sourcePixels = sourceTexture.GetPixels32();
+
+        float[] redValues = new float[sourcePixels.Length];
+        float[] greenValues = new float[sourcePixels.Length];
+        float[] blueValues = new float[sourcePixels.Length];
+        float[] alphaValues = new float[sourcePixels.Length];
+
+        for (int index = 0; index < sourcePixels.Length; index++)
+        {
+            redValues[index] = sourcePixels[index].r;
+            greenValues[index] = sourcePixels[index].g;
+            blueValues[index] = sourcePixels[index].b;
+            alphaValues[index] = sourcePixels[index].a;
+        }
+
+        Color32[] destinationPixels = new Color32[sourcePixels.Length];
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                int index = y * width + x;
+
+                Color32 oldColor = new Color32(
+                    (byte)Mathf.Clamp(Mathf.RoundToInt(redValues[index]), 0, 255),
+                    (byte)Mathf.Clamp(Mathf.RoundToInt(greenValues[index]), 0, 255),
+                    (byte)Mathf.Clamp(Mathf.RoundToInt(blueValues[index]), 0, 255),
+                    (byte)Mathf.Clamp(Mathf.RoundToInt(alphaValues[index]), 0, 255)
+                );
+
+                Color32 newColor = FindNearestColor(oldColor, palette);
+                destinationPixels[index] = newColor;
+
+                float redError = redValues[index] - newColor.r;
+                float greenError = greenValues[index] - newColor.g;
+                float blueError = blueValues[index] - newColor.b;
+                float alphaError = alphaValues[index] - newColor.a;
+
+                AddError(x + 1, y, width, height, redValues, greenValues, blueValues, alphaValues, redError, greenError, blueError, alphaError, 7f / 16f);
+                AddError(x - 1, y + 1, width, height, redValues, greenValues, blueValues, alphaValues, redError, greenError, blueError, alphaError, 3f / 16f);
+                AddError(x, y + 1, width, height, redValues, greenValues, blueValues, alphaValues, redError, greenError, blueError, alphaError, 5f / 16f);
+                AddError(x + 1, y + 1, width, height, redValues, greenValues, blueValues, alphaValues, redError, greenError, blueError, alphaError, 1f / 16f);
+            }
+        }
+
+        Texture2D destinationTexture = new Texture2D(
+            width,
+            height,
+            TextureFormat.RGBA32,
+            false);
+
+        destinationTexture.filterMode = FilterMode.Point;
+        destinationTexture.wrapMode = TextureWrapMode.Clamp;
+        destinationTexture.SetPixels32(destinationPixels);
+        destinationTexture.Apply();
+
+        return destinationTexture;
+    }
+
+    private static void AddError(
+        int x,
+        int y,
+        int width,
+        int height,
+        float[] redValues,
+        float[] greenValues,
+        float[] blueValues,
+        float[] alphaValues,
+        float redError,
+        float greenError,
+        float blueError,
+        float alphaError,
+        float factor)
+    {
+        if (x < 0 || x >= width || y < 0 || y >= height)
+            return;
+
+        int index = y * width + x;
+
+        redValues[index] += redError * factor;
+        greenValues[index] += greenError * factor;
+        blueValues[index] += blueError * factor;
+        alphaValues[index] += alphaError * factor;
+    }
+
+    private static Color32 FindNearestColor(Color32 color, Color32[] palette)
+    {
+        int bestIndex = 0;
+        int bestDistance = int.MaxValue;
+
+        for (int index = 0; index < palette.Length; index++)
+        {
+            int redDifference = color.r - palette[index].r;
+            int greenDifference = color.g - palette[index].g;
+            int blueDifference = color.b - palette[index].b;
+            int alphaDifference = color.a - palette[index].a;
+
+            int distance =
+                redDifference * redDifference +
+                greenDifference * greenDifference +
+                blueDifference * blueDifference +
+                alphaDifference * alphaDifference;
+
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestIndex = index;
+            }
+        }
+
+        return palette[bestIndex];
+    }
+
+
+
 
 
     // WuPaletteGenerator
