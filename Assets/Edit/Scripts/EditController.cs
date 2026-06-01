@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.IO;
 using TMPro;
 using UnityEngine;
@@ -11,6 +11,30 @@ public class EditController : MonoBehaviour
 
     [SerializeField]
     private Image _sourceImage;
+
+    [SerializeField]
+    private Slider _brightnessSlider;
+
+    [SerializeField]
+    private TMP_Text _brightnessText;
+
+    [SerializeField]
+    private Slider _saturationSlider;
+
+    [SerializeField]
+    private TMP_Text _saturationText;
+
+    [SerializeField]
+    private Slider _contrastSlider;
+
+    [SerializeField]
+    private TMP_Text _contrastText;
+
+    [SerializeField]
+    private Slider _sharpnessSlider;
+
+    [SerializeField]
+    private TMP_Text _sharpnessText;
 
     [SerializeField]
     private TMP_InputField _inputWidth;
@@ -63,13 +87,13 @@ public class EditController : MonoBehaviour
         if (!sourceTexture.LoadImage(fileBytes))
         {
             DestroyImmediate(sourceTexture);
-            Debug.LogError("‰æ‘œ‚Ì“Ç‚İ‚İ‚É¸”s‚µ‚Ü‚µ‚½: " + path);
+            Debug.LogError("ç”»åƒã®èª­ã¿è¾¼ã¿ã«å¤±æ•—ã—ã¾ã—ãŸ: " + path);
             return;
         }
 
         _fileName.SetText(path);
 
-        Debug.Log($"“Ç‚İ‚İ¬Œ÷: {sourceTexture.width} x {sourceTexture.height}");
+        Debug.Log($"èª­ã¿è¾¼ã¿æˆåŠŸ: {sourceTexture.width} x {sourceTexture.height}");
 
         EditUtility.SetImage(_sourceImage, sourceTexture);
 
@@ -78,7 +102,7 @@ public class EditController : MonoBehaviour
 
     private void Retouch()
     {
-        Texture2D retouchedTexture = _sourceImage.sprite.texture;
+        Texture2D retouchedTexture = EditUtility.Retouch(_sourceImage.sprite.texture, _brightnessSlider.value, _saturationSlider.value, _contrastSlider.value, _sharpnessSlider.value);
 
         EditUtility.SetImage(_retouchedImage, retouchedTexture);
 
@@ -143,7 +167,7 @@ public class EditController : MonoBehaviour
     public void OnOpen()
     {
         string path = UnityEditor.EditorUtility.OpenFilePanelWithFilters(
-            "‰æ‘œ‚ğ‘I‘ğ",
+            "ç”»åƒã‚’é¸æŠ",
             "",
             new string[]
             {
@@ -153,13 +177,37 @@ public class EditController : MonoBehaviour
 
         if (string.IsNullOrEmpty(path))
         {
-            Debug.Log("ƒLƒƒƒ“ƒZƒ‹");
+            Debug.Log("ã‚­ãƒ£ãƒ³ã‚»ãƒ«");
             return;
         }
 
         Debug.Log(path);
 
         Open(path);
+    }
+
+    public void OnChangeBrightness()
+    {
+        _brightnessText.text = (int)(_brightnessSlider.value) + "";
+        Retouch();
+    }
+
+    public void OnChangeSaturation()
+    {
+        _saturationText.text = (int)(_saturationSlider.value) + "";
+        Retouch();
+    }
+
+    public void OnChangeContrast()
+    {
+        _contrastText.text = (int)(_contrastSlider.value) + "";
+        Retouch();
+    }
+
+    public void OnChangeSharpness()
+    {
+        _sharpnessText.text = (int)(_sharpnessSlider.value) + "";
+        Retouch();
     }
 
     public void OnChangeWidth()

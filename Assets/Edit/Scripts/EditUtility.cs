@@ -1,10 +1,10 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
 public class EditUtility
 {
 
-    // ���T�C�Y
+    // リサイズ
     public static Texture2D Resize(int destinationWidth, int destinationHeight, Texture2D sourceTexture)
     {
         Color32[] sourcePixels = sourceTexture.GetPixels32();
@@ -89,7 +89,7 @@ public class EditUtility
         return resizedTexture;
     }
 
-    // �p���b�g�쐬�iWuPaletteGenerator�j
+    // パレット作成（WuPaletteGenerator）
     private struct Box
     {
         public int RedMinimum;
@@ -465,7 +465,7 @@ public class EditUtility
     }
 
 
-    // �f�B�U���茸�F
+    // ディザあり減色
     public static Texture2D ReduceWithoutDither(Texture2D sourceTexture, Color32[] palette)
     {
         Color32[] sourcePixels = sourceTexture.GetPixels32();
@@ -486,7 +486,7 @@ public class EditUtility
         return destinationTexture;
     }
 
-    // �f�B�U�Ȃ����F
+    // ディザなし減色
     public static Texture2D ReduceWithFloydSteinbergDither(Texture2D sourceTexture, Color32[] palette)
     {
         int width = sourceTexture.width;
@@ -605,7 +605,7 @@ public class EditUtility
         return palette[bestIndex];
     }
 
-    // �e�N�X�`����Image�ɃZ�b�g���đ傫������������
+    // テクスチャをImageにセットして大きさを自動調整
     public static void SetImage(Image image, Texture2D texture)
     {
         Sprite sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100f);
@@ -622,5 +622,164 @@ public class EditUtility
 
         imageRectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, parentHeight);
         imageRectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, previewWidth);
+    }
+
+    // brightness : -100 ～ 100   // 0 が無補正 明度
+    // saturation : -100 ～ 100   // 0 が無補正、-100 でグレースケール 彩度
+    // contrast   : -100 ～ 100   // 0 が無補正 コントラスト
+    // sharpness  : 0 ～ 5   // 0 が無補正 シャープネス
+    public static Texture2D Retouch( Texture2D sourceTexture, float brightness, float saturation, float contrast, float sharpness)
+    {
+        brightness = Mathf.Clamp(brightness, -100f, 100f);
+        saturation = Mathf.Clamp(saturation, -100f, 100f);
+        contrast = Mathf.Clamp(contrast, -100f, 100f);
+
+        Color32[] sourcePixels = sourceTexture.GetPixels32();
+        Color32[] destinationPixels = new Color32[sourcePixels.Length];
+
+        float brightnessOffset = brightness / 100f;
+        float saturationFactor = 1f + saturation / 100f;
+
+        float contrastFactor = (100f + contrast) / 100f;
+        contrastFactor *= contrastFactor;
+
+        for (int index = 0; index < sourcePixels.Length; index++)
+        {
+            Color32 sourceColor = sourcePixels[index];
+
+            float red = sourceColor.r / 255f;
+            float green = sourceColor.g / 255f;
+            float blue = sourceColor.b / 255f;
+            float alpha = sourceColor.a / 255f;
+
+            // 明度
+            red += brightnessOffset;
+            green += brightnessOffset;
+            blue += brightnessOffset;
+
+            // コントラスト
+            red = ((red - 0.5f) * contrastFactor) + 0.5f;
+            green = ((green - 0.5f) * contrastFactor) + 0.5f;
+            blue = ((blue - 0.5f) * contrastFactor) + 0.5f;
+
+            // 彩度
+            float luminance = red * 0.299f + green * 0.587f + blue * 0.114f;
+
+            red = luminance + (red - luminance) * saturationFactor;
+            green = luminance + (green - luminance) * saturationFactor;
+            blue = luminance + (blue - luminance) * saturationFactor;
+
+            destinationPixels[index] = new Color32(
+                (byte)Mathf.Clamp(Mathf.RoundToInt(red * 255f), 0, 255),
+                (byte)Mathf.Clamp(Mathf.RoundToInt(green * 255f), 0, 255),
+                (byte)Mathf.Clamp(Mathf.RoundToInt(blue * 255f), 0, 255),
+                (byte)Mathf.Clamp(Mathf.RoundToInt(alpha * 255f), 0, 255)
+            );
+        }
+
+        sharpness = Mathf.Clamp(sharpness, 0f, 5f);
+
+        if (sharpness > 0f)
+        {
+            ApplyUnsharpMask(
+                destinationPixels,
+                sourceTexture.width,
+                sourceTexture.height,
+                sharpness
+            );
+        }
+
+        Texture2D destinationTexture = new Texture2D(
+            sourceTexture.width,
+            sourceTexture.height,
+            TextureFormat.RGBA32,
+            false
+        );
+
+        destinationTexture.filterMode = sourceTexture.filterMode;
+        destinationTexture.wrapMode = sourceTexture.wrapMode;
+        destinationTexture.SetPixels32(destinationPixels);
+        destinationTexture.Apply(false, false);
+
+        return destinationTexture;
+    }
+
+    private static void ApplyUnsharpMask( Color32[] pixels, int width, int height, float sharpness )
+    {
+        Color32[] sourcePixels = (Color32[])pixels.Clone();
+        Color32[] blurredPixels = new Color32[pixels.Length];
+
+        for (int y = 1; y < height - 1; y++)
+        {
+            for (int x = 1; x < width - 1; x++)
+            {
+                float red =
+                    sourcePixels[(y - 1) * width + (x - 1)].r * 1 +
+                    sourcePixels[(y - 1) * width + (x + 0)].r * 2 +
+                    sourcePixels[(y - 1) * width + (x + 1)].r * 1 +
+                    sourcePixels[(y + 0) * width + (x - 1)].r * 2 +
+                    sourcePixels[(y + 0) * width + (x + 0)].r * 4 +
+                    sourcePixels[(y + 0) * width + (x + 1)].r * 2 +
+                    sourcePixels[(y + 1) * width + (x - 1)].r * 1 +
+                    sourcePixels[(y + 1) * width + (x + 0)].r * 2 +
+                    sourcePixels[(y + 1) * width + (x + 1)].r * 1;
+
+                float green =
+                    sourcePixels[(y - 1) * width + (x - 1)].g * 1 +
+                    sourcePixels[(y - 1) * width + (x + 0)].g * 2 +
+                    sourcePixels[(y - 1) * width + (x + 1)].g * 1 +
+                    sourcePixels[(y + 0) * width + (x - 1)].g * 2 +
+                    sourcePixels[(y + 0) * width + (x + 0)].g * 4 +
+                    sourcePixels[(y + 0) * width + (x + 1)].g * 2 +
+                    sourcePixels[(y + 1) * width + (x - 1)].g * 1 +
+                    sourcePixels[(y + 1) * width + (x + 0)].g * 2 +
+                    sourcePixels[(y + 1) * width + (x + 1)].g * 1;
+
+                float blue =
+                    sourcePixels[(y - 1) * width + (x - 1)].b * 1 +
+                    sourcePixels[(y - 1) * width + (x + 0)].b * 2 +
+                    sourcePixels[(y - 1) * width + (x + 1)].b * 1 +
+                    sourcePixels[(y + 0) * width + (x - 1)].b * 2 +
+                    sourcePixels[(y + 0) * width + (x + 0)].b * 4 +
+                    sourcePixels[(y + 0) * width + (x + 1)].b * 2 +
+                    sourcePixels[(y + 1) * width + (x - 1)].b * 1 +
+                    sourcePixels[(y + 1) * width + (x + 0)].b * 2 +
+                    sourcePixels[(y + 1) * width + (x + 1)].b * 1;
+
+                blurredPixels[y * width + x] = new Color32(
+                    (byte)(red / 16f),
+                    (byte)(green / 16f),
+                    (byte)(blue / 16f),
+                    sourcePixels[y * width + x].a
+                );
+            }
+        }
+
+        for (int y = 1; y < height - 1; y++)
+        {
+            for (int x = 1; x < width - 1; x++)
+            {
+                int index = y * width + x;
+
+                float red =
+                    sourcePixels[index].r +
+                    (sourcePixels[index].r - blurredPixels[index].r) * sharpness;
+
+                float green =
+                    sourcePixels[index].g +
+                    (sourcePixels[index].g - blurredPixels[index].g) * sharpness;
+
+                float blue =
+                    sourcePixels[index].b +
+                    (sourcePixels[index].b - blurredPixels[index].b) * sharpness;
+
+                pixels[index] = new Color32(
+                    (byte)Mathf.Clamp(Mathf.RoundToInt(red), 0, 255),
+                    (byte)Mathf.Clamp(Mathf.RoundToInt(green), 0, 255),
+                    (byte)Mathf.Clamp(Mathf.RoundToInt(blue), 0, 255),
+                    sourcePixels[index].a
+                );
+            }
+        }
     }
 }
