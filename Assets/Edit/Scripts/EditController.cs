@@ -37,6 +37,9 @@ public class EditController : MonoBehaviour
     private TMP_Text _sharpnessText;
 
     [SerializeField]
+    private Image _retouchedImage;
+
+    [SerializeField]
     private TMP_InputField _inputWidth;
 
     [SerializeField]
@@ -46,7 +49,31 @@ public class EditController : MonoBehaviour
     private Image _resizedImage;
 
     [SerializeField]
-    private Image _retouchedImage;
+    private Slider _brightness2Slider;
+
+    [SerializeField]
+    private TMP_Text _brightness2Text;
+
+    [SerializeField]
+    private Slider _saturation2Slider;
+
+    [SerializeField]
+    private TMP_Text _saturation2Text;
+
+    [SerializeField]
+    private Slider _contrast2Slider;
+
+    [SerializeField]
+    private TMP_Text _contrast2Text;
+
+    [SerializeField]
+    private Slider _sharpness2Slider;
+
+    [SerializeField]
+    private TMP_Text _sharpness2Text;
+
+    [SerializeField]
+    private Image _retouched2Image;
 
     [SerializeField]
     private TMP_InputField _inputPaletteCount;
@@ -115,12 +142,21 @@ public class EditController : MonoBehaviour
 
         EditUtility.SetImage(_resizedImage, resizedTexture);
 
+        Retouch2();
+    }
+
+    private void Retouch2()
+    {
+        Texture2D retouchedTexture = EditUtility.Retouch(_resizedImage.sprite.texture, _brightness2Slider.value, _saturation2Slider.value, _contrast2Slider.value, _sharpness2Slider.value);
+
+        EditUtility.SetImage(_retouched2Image, retouchedTexture);
+
         CreatePalette();
     }
 
     private void CreatePalette()
     {
-        Color32[] colors = EditUtility.GeneratePalette(_resizedImage.sprite.texture, int.Parse(_inputPaletteCount.text));
+        Color32[] colors = EditUtility.GeneratePalette(_retouched2Image.sprite.texture, int.Parse(_inputPaletteCount.text));
 
         for (int index = _paletteTransform.childCount - 1; index >= 0; index--)
         {
@@ -150,11 +186,11 @@ public class EditController : MonoBehaviour
 
         if (_ditherToggle.isOn)
         {
-            reductionedTexture = EditUtility.ReduceWithFloydSteinbergDither(_resizedImage.sprite.texture, palette);
+            reductionedTexture = EditUtility.ReduceWithFloydSteinbergDither(_retouched2Image.sprite.texture, palette);
         }
         else
         {
-            reductionedTexture = EditUtility.ReduceWithoutDither(_resizedImage.sprite.texture, palette);
+            reductionedTexture = EditUtility.ReduceWithoutDither(_retouched2Image.sprite.texture, palette);
         }
 
         EditUtility.SetImage(_reductionedImage, reductionedTexture);
@@ -226,6 +262,30 @@ public class EditController : MonoBehaviour
         _inputWidth.SetTextWithoutNotify((int)(float.Parse(_inputHeight.text) * aspectRatio) + "");
 
         Resize();
+    }
+
+    public void OnChangeBrightness2()
+    {
+        _brightness2Text.text = (int)(_brightness2Slider.value) + "";
+        Retouch2();
+    }
+
+    public void OnChangeSaturation2()
+    {
+        _saturation2Text.text = (int)(_saturation2Slider.value) + "";
+        Retouch2();
+    }
+
+    public void OnChangeContrast2()
+    {
+        _contrast2Text.text = (int)(_contrast2Slider.value) + "";
+        Retouch2();
+    }
+
+    public void OnChangeSharpness2()
+    {
+        _sharpness2Text.text = (int)(_sharpness2Slider.value) + "";
+        Retouch2();
     }
 
     public void OnChangePaletteCount()
