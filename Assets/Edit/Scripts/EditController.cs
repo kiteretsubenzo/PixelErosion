@@ -10,9 +10,6 @@ public class EditController : MonoBehaviour
     private TMP_Text _fileName;
 
     [SerializeField]
-    private Image _sourceImage;
-
-    [SerializeField]
     private Slider _brightnessSlider;
 
     [SerializeField]
@@ -93,6 +90,8 @@ public class EditController : MonoBehaviour
     [SerializeField]
     private Image _reductionedImage;
 
+    private Texture2D _sourceTexture = null;
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -109,27 +108,25 @@ public class EditController : MonoBehaviour
     {
         byte[] fileBytes = File.ReadAllBytes(path);
 
-        Texture2D sourceTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+        _sourceTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
 
-        if (!sourceTexture.LoadImage(fileBytes))
+        if (!_sourceTexture.LoadImage(fileBytes))
         {
-            DestroyImmediate(sourceTexture);
+            DestroyImmediate(_sourceTexture);
             Debug.LogError("画像の読み込みに失敗しました: " + path);
             return;
         }
 
         _fileName.SetText(path);
 
-        Debug.Log($"読み込み成功: {sourceTexture.width} x {sourceTexture.height}");
-
-        EditUtility.SetImage(_sourceImage, sourceTexture);
+        Debug.Log($"読み込み成功: {_sourceTexture.width} x {_sourceTexture.height}");
 
         Retouch();
     }
 
     private void Retouch()
     {
-        Texture2D retouchedTexture = EditUtility.Retouch(_sourceImage.sprite.texture, _brightnessSlider.value, _saturationSlider.value, _contrastSlider.value, _sharpnessSlider.value);
+        Texture2D retouchedTexture = EditUtility.Retouch(_sourceTexture, _brightnessSlider.value, _saturationSlider.value, _contrastSlider.value, _sharpnessSlider.value);
 
         EditUtility.SetImage(_retouchedImage, retouchedTexture);
 
@@ -248,7 +245,7 @@ public class EditController : MonoBehaviour
 
     public void OnChangeWidth()
     {
-        float aspectRatio = (float)_sourceImage.sprite.texture.width / _sourceImage.sprite.texture.height;
+        float aspectRatio = (float)_sourceTexture.width / _sourceTexture.height;
 
         _inputHeight.SetTextWithoutNotify((int)(float.Parse(_inputWidth.text) / aspectRatio) + "");
 
@@ -257,7 +254,7 @@ public class EditController : MonoBehaviour
 
     public void OnChangeHeight()
     {
-        float aspectRatio = (float)_sourceImage.sprite.texture.width / _sourceImage.sprite.texture.height;
+        float aspectRatio = (float)_sourceTexture.width / _sourceTexture.height;
 
         _inputWidth.SetTextWithoutNotify((int)(float.Parse(_inputHeight.text) * aspectRatio) + "");
 
@@ -296,5 +293,10 @@ public class EditController : MonoBehaviour
     public void OnChangeDither()
     {
         Reduction();
+    }
+
+    public void OnChangeColorPicker(Color32 color)
+    {
+        Debug.Log(color);
     }
 }
