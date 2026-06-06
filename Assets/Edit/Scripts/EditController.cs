@@ -34,16 +34,13 @@ public class EditController : MonoBehaviour
     private TMP_Text _sharpnessText;
 
     [SerializeField]
-    private Image _retouchedImage;
+    private Image _sourceImage;
 
     [SerializeField]
     private TMP_InputField _inputWidth;
 
     [SerializeField]
     private TMP_InputField _inputHeight;
-
-    [SerializeField]
-    private Image _resizedImage;
 
     [SerializeField]
     private Slider _brightness2Slider;
@@ -70,7 +67,7 @@ public class EditController : MonoBehaviour
     private TMP_Text _sharpness2Text;
 
     [SerializeField]
-    private Image _retouched2Image;
+    private Image _resizedImage;
 
     [SerializeField]
     private TMP_InputField _inputPaletteCount;
@@ -121,6 +118,9 @@ public class EditController : MonoBehaviour
 
         Debug.Log($"読み込み成功: {_sourceTexture.width} x {_sourceTexture.height}");
 
+        float aspectRatio = (float)_sourceTexture.width / _sourceTexture.height;
+        _inputHeight.SetTextWithoutNotify((int)(float.Parse(_inputWidth.text) / aspectRatio) + "");
+
         Retouch();
     }
 
@@ -128,32 +128,24 @@ public class EditController : MonoBehaviour
     {
         Texture2D retouchedTexture = EditUtility.Retouch(_sourceTexture, _brightnessSlider.value, _saturationSlider.value, _contrastSlider.value, _sharpnessSlider.value);
 
-        EditUtility.SetImage(_retouchedImage, retouchedTexture);
+        EditUtility.SetImage(_sourceImage, retouchedTexture);
 
         Resize();
     }
 
     private void Resize()
     {
-        Texture2D resizedTexture = EditUtility.Resize(int.Parse(_inputWidth.text), int.Parse(_inputHeight.text), _retouchedImage.sprite.texture);
+        Texture2D resizedTexture = EditUtility.Resize(int.Parse(_inputWidth.text), int.Parse(_inputHeight.text), _sourceImage.sprite.texture);
+        Texture2D retouchedTexture = EditUtility.Retouch(resizedTexture, _brightness2Slider.value, _saturation2Slider.value, _contrast2Slider.value, _sharpness2Slider.value); ;
 
-        EditUtility.SetImage(_resizedImage, resizedTexture);
-
-        Retouch2();
-    }
-
-    private void Retouch2()
-    {
-        Texture2D retouchedTexture = EditUtility.Retouch(_resizedImage.sprite.texture, _brightness2Slider.value, _saturation2Slider.value, _contrast2Slider.value, _sharpness2Slider.value);
-
-        EditUtility.SetImage(_retouched2Image, retouchedTexture);
+        EditUtility.SetImage(_resizedImage, retouchedTexture);
 
         CreatePalette();
     }
 
     private void CreatePalette()
     {
-        Color32[] colors = EditUtility.GeneratePalette(_retouched2Image.sprite.texture, int.Parse(_inputPaletteCount.text));
+        Color32[] colors = EditUtility.GeneratePalette(_resizedImage.sprite.texture, int.Parse(_inputPaletteCount.text));
 
         for (int index = _paletteTransform.childCount - 1; index >= 0; index--)
         {
@@ -183,11 +175,11 @@ public class EditController : MonoBehaviour
 
         if (_ditherToggle.isOn)
         {
-            reductionedTexture = EditUtility.ReduceWithFloydSteinbergDither(_retouched2Image.sprite.texture, palette);
+            reductionedTexture = EditUtility.ReduceWithFloydSteinbergDither(_resizedImage.sprite.texture, palette);
         }
         else
         {
-            reductionedTexture = EditUtility.ReduceWithoutDither(_retouched2Image.sprite.texture, palette);
+            reductionedTexture = EditUtility.ReduceWithoutDither(_resizedImage.sprite.texture, palette);
         }
 
         EditUtility.SetImage(_reductionedImage, reductionedTexture);
@@ -264,25 +256,25 @@ public class EditController : MonoBehaviour
     public void OnChangeBrightness2()
     {
         _brightness2Text.text = (int)(_brightness2Slider.value) + "";
-        Retouch2();
+        Resize();
     }
 
     public void OnChangeSaturation2()
     {
         _saturation2Text.text = (int)(_saturation2Slider.value) + "";
-        Retouch2();
+        Resize();
     }
 
     public void OnChangeContrast2()
     {
         _contrast2Text.text = (int)(_contrast2Slider.value) + "";
-        Retouch2();
+        Resize();
     }
 
     public void OnChangeSharpness2()
     {
         _sharpness2Text.text = (int)(_sharpness2Slider.value) + "";
-        Retouch2();
+        Resize();
     }
 
     public void OnChangePaletteCount()
