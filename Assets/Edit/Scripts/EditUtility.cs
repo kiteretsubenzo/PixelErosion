@@ -466,28 +466,7 @@ public class EditUtility
 
 
     // ディザあり減色
-    public static Texture2D ReduceWithoutDither(Texture2D sourceTexture, Color32[] palette)
-    {
-        Color32[] sourcePixels = sourceTexture.GetPixels32();
-        Color32[] destinationPixels = new Color32[sourcePixels.Length];
-
-        for (int index = 0; index < sourcePixels.Length; index++)
-        {
-            destinationPixels[index] = FindNearestColor(sourcePixels[index], palette);
-        }
-
-        Texture2D destinationTexture = new Texture2D(sourceTexture.width, sourceTexture.height, TextureFormat.RGBA32, false);
-
-        destinationTexture.filterMode = FilterMode.Point;
-        destinationTexture.wrapMode = TextureWrapMode.Clamp;
-        destinationTexture.SetPixels32(destinationPixels);
-        destinationTexture.Apply();
-
-        return destinationTexture;
-    }
-
-    // ディザなし減色
-    public static Texture2D ReduceWithFloydSteinbergDither(Texture2D sourceTexture, Color32[] palette)
+    public static byte[][] ReduceWithDither(Texture2D sourceTexture, Color32[] palette)
     {
         int width = sourceTexture.width;
         int height = sourceTexture.height;
@@ -507,7 +486,12 @@ public class EditUtility
             alphaValues[index] = sourcePixels[index].a;
         }
 
-        Color32[] destinationPixels = new Color32[sourcePixels.Length];
+        byte[][] matrix = new byte[height][];
+
+        for (int y = 0; y < height; y++)
+        {
+            matrix[y] = new byte[width];
+        }
 
         for (int y = 0; y < height; y++)
         {
@@ -522,8 +506,10 @@ public class EditUtility
                     (byte)Mathf.Clamp(Mathf.RoundToInt(alphaValues[index]), 0, 255)
                 );
 
-                Color32 newColor = FindNearestColor(oldColor, palette);
-                destinationPixels[index] = newColor;
+                byte nearestIndex = FindNearestColorIndex(oldColor, palette);
+                Color32 newColor = palette[nearestIndex];
+
+                matrix[y][x] = nearestIndex;
 
                 float redError = redValues[index] - newColor.r;
                 float greenError = greenValues[index] - newColor.g;
@@ -537,18 +523,55 @@ public class EditUtility
             }
         }
 
-        Texture2D destinationTexture = new Texture2D(
-            width,
-            height,
-            TextureFormat.RGBA32,
-            false);
+        return matrix;
+    }
 
-        destinationTexture.filterMode = FilterMode.Point;
-        destinationTexture.wrapMode = TextureWrapMode.Clamp;
-        destinationTexture.SetPixels32(destinationPixels);
-        destinationTexture.Apply();
+    // ディザなし減色
+    public static byte[][] ReduceWithoutDither(Texture2D sourceTexture, Color32[] palette)
+    {
+        int width = sourceTexture.width;
+        int height = sourceTexture.height;
 
-        return destinationTexture;
+        Color32[] sourcePixels = sourceTexture.GetPixels32();
+
+        byte[][] matrix = new byte[height][];
+
+        for (int y = 0; y < height; y++)
+        {
+            matrix[y] = new byte[width];
+
+            for (int x = 0; x < width; x++)
+            {
+                int index = y * width + x;
+                matrix[y][x] = FindNearestColorIndex(sourcePixels[index], palette);
+            }
+        }
+
+        return matrix;
+    }
+
+    private static byte FindNearestColorIndex(Color32 color, Color32[] palette)
+    {
+        int nearestIndex = 0;
+        int nearestDistance = int.MaxValue;
+
+        for (int index = 0; index < palette.Length; index++)
+        {
+            int red = color.r - palette[index].r;
+            int green = color.g - palette[index].g;
+            int blue = color.b - palette[index].b;
+            int alpha = color.a - palette[index].a;
+
+            int distance = red * red + green * green + blue * blue + alpha * alpha;
+
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                nearestIndex = index;
+            }
+        }
+
+        return (byte)nearestIndex;
     }
 
     private static void AddError(
@@ -575,34 +598,6 @@ public class EditUtility
         greenValues[index] += greenError * factor;
         blueValues[index] += blueError * factor;
         alphaValues[index] += alphaError * factor;
-    }
-
-    private static Color32 FindNearestColor(Color32 color, Color32[] palette)
-    {
-        int bestIndex = 0;
-        int bestDistance = int.MaxValue;
-
-        for (int index = 0; index < palette.Length; index++)
-        {
-            int redDifference = color.r - palette[index].r;
-            int greenDifference = color.g - palette[index].g;
-            int blueDifference = color.b - palette[index].b;
-            int alphaDifference = color.a - palette[index].a;
-
-            int distance =
-                redDifference * redDifference +
-                greenDifference * greenDifference +
-                blueDifference * blueDifference +
-                alphaDifference * alphaDifference;
-
-            if (distance < bestDistance)
-            {
-                bestDistance = distance;
-                bestIndex = index;
-            }
-        }
-
-        return palette[bestIndex];
     }
 
     // テクスチャをImageにセットして大きさを自動調整

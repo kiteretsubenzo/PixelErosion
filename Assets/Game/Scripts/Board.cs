@@ -18,6 +18,9 @@ public class Board
     public int Height { get { return _matrix == null ? -1 : _matrix.Length; } }
     public int Width { get { return _matrix == null ? -1 : _matrix[0].Length; } }
 
+    // アロケート回避用
+    private Color32[] _pixels = null;
+
     static readonly byte[] PNG_SIGNATURE = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
     private enum COLOR_TYPE
     {
@@ -48,6 +51,11 @@ public class Board
     public Board()
     {
 
+    }
+
+    public Board(byte[][] matrix, Color32[] palette)
+    {
+        SetMatrixAndPalette(matrix, palette);
     }
 
     public Board(byte[] bytes)
@@ -341,45 +349,85 @@ public class Board
 
     public void Copy(Board board)
     {
-        if (board.Matrix == null)
+        SetMatrixAndPalette(board.Matrix, board.Palette);
+    }
+
+    public void SetMatrixAndPalette(byte[][] matrix, Color32[] palette)
+    {
+        if (matrix == null)
         {
             _matrix = null;
         }
         else
         {
-            if (board.Width != Width || board.Height != Height)
+            if (_matrix == null || _matrix.Length != matrix.Length)
             {
-                _matrix = new byte[board.Height][];
-
-                for (int y = 0; y < board.Matrix.Length; y++)
-                {
-                    _matrix[y] = (byte[])board.Matrix[y].Clone();
-                }
+                _matrix = new byte[matrix.Length][];
             }
-            else
+
+            for (int i = 0; i < matrix.Length; i++)
             {
-                for (int y = 0; y < Height; y++)
+                if (matrix[i] == null)
                 {
-                    Array.Copy(board.Matrix[y], _matrix[y], Width);
+                    _matrix[i] = null;
+                }
+                else
+                {
+                    if (_matrix[i] == null || _matrix[i].Length != matrix[i].Length)
+                    {
+                        _matrix[i] = new byte[matrix[i].Length];
+                    }
+
+                    Array.Copy(matrix[i], _matrix[i], matrix[i].Length);
                 }
             }
         }
 
-        if (board.Palette == null)
+        if (palette == null)
         {
             _palette = null;
         }
         else
         {
-            if(_palette == null || _palette.Length != board.Palette.Length)
+            if (_palette == null || _palette.Length != palette.Length)
             {
-                _palette = (Color32[])board.Palette.Clone();
+                _palette = new Color32[palette.Length];
             }
-            else
+
+            Array.Copy(palette, _palette, palette.Length);
+        }
+    }
+
+    public void Apply(ref Texture2D texture)
+    {
+        if(_matrix == null || _palette == null)
+        {
+            texture = null;
+            return;
+        }
+
+        if (texture == null || texture.width != Width || texture.height != Height)
+        {
+            texture = new Texture2D(Width, Height, TextureFormat.RGBA32, false);
+            texture.filterMode = FilterMode.Point;
+            texture.wrapMode = TextureWrapMode.Clamp;
+        }
+
+        if (_pixels == null || _pixels.Length != (Width * Height))
+        {
+            _pixels = new Color32[Width * Height];
+        }
+
+        for (int y = 0; y < Height; y++)
+        {
+            for (int x = 0; x < Width; x++)
             {
-                Array.Copy(board.Palette, _palette, _palette.Length);
+                _pixels[y * Width + x] = Palette[Matrix[y][x]];
             }
         }
+
+        texture.SetPixels32(_pixels);
+        texture.Apply(false, false);
     }
 
     public void PaintArea(int x, int y, byte index)

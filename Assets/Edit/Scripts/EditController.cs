@@ -88,6 +88,9 @@ public class EditController : MonoBehaviour
     private Image _reductionedImage;
 
     private Texture2D _sourceTexture = null;
+    private Texture2D _indexTexture = null;
+
+    private Board _board = new Board();
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -171,18 +174,21 @@ public class EditController : MonoBehaviour
             palette[i] = _paletteTransform.GetChild(i).GetChild(0).GetComponent<Image>().color;
         }
 
-        Texture2D reductionedTexture;
+        byte[][] matrix;
 
         if (_ditherToggle.isOn)
         {
-            reductionedTexture = EditUtility.ReduceWithFloydSteinbergDither(_resizedImage.sprite.texture, palette);
+            matrix = EditUtility.ReduceWithDither(_resizedImage.sprite.texture, palette);
         }
         else
         {
-            reductionedTexture = EditUtility.ReduceWithoutDither(_resizedImage.sprite.texture, palette);
+            matrix = EditUtility.ReduceWithoutDither(_resizedImage.sprite.texture, palette);
         }
 
-        EditUtility.SetImage(_reductionedImage, reductionedTexture);
+        _board.SetMatrixAndPalette(matrix, palette);
+        _board.Apply(ref _indexTexture);
+
+        EditUtility.SetImage(_reductionedImage, _indexTexture);
     }
 
     /// <summary>
