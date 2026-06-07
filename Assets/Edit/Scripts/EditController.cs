@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -87,6 +88,9 @@ public class EditController : MonoBehaviour
     [SerializeField]
     private Image _reductionedImage;
 
+    [SerializeField]
+    private ColorPicker _colorPicker;
+
     private Texture2D _sourceTexture = null;
     private Texture2D _indexTexture = null;
 
@@ -158,7 +162,9 @@ public class EditController : MonoBehaviour
         foreach (Color32 color in colors)
         {
             GameObject gameObject = Instantiate(_colorPrefab, _paletteTransform);
-            gameObject.GetComponent<Toggle>().group = _paletteToggleGroup;
+            Toggle toggle = gameObject.GetComponent<Toggle>();
+            toggle.group = _paletteToggleGroup;
+            toggle.onValueChanged.AddListener(OnSelectPalette);
             gameObject.transform.GetChild(0).GetComponent<Image>().color = color;
         }
 
@@ -186,6 +192,44 @@ public class EditController : MonoBehaviour
         }
 
         _board.SetMatrixAndPalette(matrix, palette);
+        _board.Apply(ref _indexTexture);
+
+        EditUtility.SetImage(_reductionedImage, _indexTexture);
+    }
+
+    public void Refresh()
+    {
+        Toggle toggle = _paletteToggleGroup.ActiveToggles().FirstOrDefault();
+        int selectedIndex = toggle == null ? -1 : toggle.transform.GetSiblingIndex();
+
+        int paletteCountDelta = _board.Palette.Count() - _paletteTransform.childCount;
+        if(0 < paletteCountDelta)
+        {
+            for(int i=0; i<paletteCountDelta; i++)
+            {
+                GameObject gameObject = Instantiate(_colorPrefab, _paletteTransform);
+                gameObject.GetComponent<Toggle>().group = _paletteToggleGroup;
+            }
+        }
+        else if(paletteCountDelta < 0)
+        {
+            for(int i=-1; paletteCountDelta <= i; i--)
+            {
+                Destroy(_paletteTransform.GetChild(_paletteTransform.childCount + i).gameObject);
+            }
+        }
+
+        for(int i=0; i<_board.Palette.Count(); i++)
+        {
+            Color32 color = _board.Palette[i];
+            _paletteTransform.GetChild(i).GetChild(0).GetComponent<Image>().color = color;
+        }
+
+        if(0 <= selectedIndex)
+        {
+            _paletteTransform.GetChild(selectedIndex).GetComponent<Toggle>().SetIsOnWithoutNotify(true);
+        }
+
         _board.Apply(ref _indexTexture);
 
         EditUtility.SetImage(_reductionedImage, _indexTexture);
@@ -293,8 +337,34 @@ public class EditController : MonoBehaviour
         Reduction();
     }
 
+    public void OnSelectPalette(bool isOn)
+    {
+        if(isOn == false)
+        {
+            return;
+        }
+
+        Toggle toggle = _paletteToggleGroup.ActiveToggles().FirstOrDefault();
+        if(toggle == null)
+        {
+            return;
+        }
+
+        Color32 color = toggle.transform.GetChild(0).GetComponent<Image>().color;
+        _colorPicker.SetColor(color);
+    }
+
     public void OnChangeColorPicker(Color32 color)
     {
         Debug.Log(color);
+        
+        Toggle toggle = _paletteToggleGroup.ActiveToggles().FirstOrDefault();
+        if (toggle != null)
+        {
+            int index = toggle.transform.GetSiblingIndex();
+            _board.Palette[index] = color;
+
+            Refresh();
+        }
     }
 }

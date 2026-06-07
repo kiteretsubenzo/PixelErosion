@@ -4901,6 +4901,7 @@ MonoBehaviour:
   _paletteToggleGroup: {fileID: 64644004}
   _ditherToggle: {fileID: 85800699}
   _reductionedImage: {fileID: 1229454089}
+  _colorPicker: {fileID: 2062335907}
 --- !u!4 &785492283
 Transform:
   m_ObjectHideFlags: 0
@@ -10342,6 +10343,17 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 44157958747555236, guid: 42c04e537df6fd945bd9eef01ebf4a24, type: 3}
   m_PrefabInstance: {fileID: 6529535321193691744}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &2062335907 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6742137680054869322, guid: 42c04e537df6fd945bd9eef01ebf4a24, type: 3}
+  m_PrefabInstance: {fileID: 6529535321193691744}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6c2a889463218f4badc83ab30aa7429, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ColorPicker
 --- !u!1 &2068026175
 GameObject:
   m_ObjectHideFlags: 0

@@ -61,8 +61,6 @@ public class ColorPicker : MonoBehaviour
         _rInput.SetTextWithoutNotify(r + "");
         _gInput.SetTextWithoutNotify(g + "");
         _bInput.SetTextWithoutNotify(b + "");
-
-        _onColorChanged?.Invoke(new Color32(r, g, b, GetAlpha()));
     }
 
     private void SetAlphaText(byte a)
@@ -70,7 +68,6 @@ public class ColorPicker : MonoBehaviour
         _aInput.SetTextWithoutNotify(a + "");
 
         (byte r, byte g, byte b) rgb = GetRGB();
-        _onColorChanged?.Invoke(new Color32(rgb.r, rgb.g, rgb.b, a));
     }
 
     private void SetHueCursor(float h)
@@ -86,7 +83,6 @@ public class ColorPicker : MonoBehaviour
         (float s, float v) sv = GetSV();
         Color32 color = Color.HSVToRGB(h, sv.s, sv.v);
         color.a = GetAlpha();
-        _onColorChanged?.Invoke(color);
     }
 
     private void SetSVCursor(float s, float v)
@@ -101,7 +97,6 @@ public class ColorPicker : MonoBehaviour
         float h = GetHue();
         Color32 color = Color.HSVToRGB(h, s, v);
         color.a = GetAlpha();
-        _onColorChanged?.Invoke(color);
     }
 
     private (byte r, byte g, byte b) GetRGB()
@@ -132,7 +127,7 @@ public class ColorPicker : MonoBehaviour
             position.y
         );
 
-        return(1.0f - normalizedX, normalizedY);
+        return(normalizedX, normalizedY);
     }
 
     private float GetHue()
@@ -140,8 +135,8 @@ public class ColorPicker : MonoBehaviour
         Rect rect = _hueRectTransform.rect;
 
         float normalizedY = Mathf.InverseLerp(
-            rect.yMax,
             rect.yMin,
+            rect.yMax,
             _hueCursor.anchoredPosition.y
         );
 
@@ -171,6 +166,8 @@ public class ColorPicker : MonoBehaviour
 
         SetHueCursor(h);
         SetSVCursor(s, v);
+
+        _onColorChanged?.Invoke(new Color32(r, g, b, GetAlpha()));
     }
 
     public void OnChangeAlpha()
@@ -181,6 +178,9 @@ public class ColorPicker : MonoBehaviour
         }
 
         SetAlphaText(a);
+
+        (byte r, byte g, byte b) rgb = GetRGB();
+        _onColorChanged?.Invoke(new Color32(rgb.r, rgb.g, rgb.b, a));
     }
 
     public void OnChangeSV(BaseEventData eventData)
@@ -209,6 +209,10 @@ public class ColorPicker : MonoBehaviour
 
         Color32 color = Color.HSVToRGB(h, u, v);
         SetRGBText(color.r, color.g, color.b);
+
+        color.a = GetAlpha();
+
+        _onColorChanged?.Invoke(color);
     }
 
     public void OnChangeHue(BaseEventData eventData)
@@ -236,5 +240,19 @@ public class ColorPicker : MonoBehaviour
 
         Color32 color = Color.HSVToRGB(hue, sv.s, sv.v);
         SetRGBText(color.r, color.g, color.b);
+
+        color.a = GetAlpha();
+
+        _onColorChanged?.Invoke(color);
+    }
+
+    public void SetColor(Color32 color)
+    {
+        SetRGBText(color.r, color.g, color.b);
+
+        Color.RGBToHSV(color, out float h, out float s, out float v);
+
+        SetHueCursor(h);
+        SetSVCursor(s, v);
     }
 }
