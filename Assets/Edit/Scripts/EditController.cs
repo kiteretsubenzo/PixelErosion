@@ -173,18 +173,11 @@ public class EditController : MonoBehaviour
             gameObject.transform.GetChild(0).GetComponent<Image>().color = color;
         }
 
-        Reduction();
+        Reduction(colors);
     }
 
-    private void Reduction()
+    private void Reduction(Color32[] palette)
     {
-        Color32[] palette = new Color32[_paletteTransform.childCount];
-
-        for (int i = 0; i < _paletteTransform.childCount; i++)
-        {
-            palette[i] = _paletteTransform.GetChild(i).GetChild(0).GetComponent<Image>().color;
-        }
-
         byte[,] matrix;
 
         if (_ditherToggle.isOn)
@@ -339,7 +332,7 @@ public class EditController : MonoBehaviour
 
     public void OnChangeDither()
     {
-        Reduction();
+        CreatePalette();
     }
 
     public void OnSelectPalette(bool isOn)
@@ -419,5 +412,129 @@ public class EditController : MonoBehaviour
 
             Refresh();
         }
+    }
+
+    public void OnPrev()
+    {
+        Toggle toggle = _paletteToggleGroup.ActiveToggles().FirstOrDefault();
+
+        if (toggle == null)
+        {
+            return;
+        }
+
+        byte selectedIndex = (byte)(toggle.transform.GetSiblingIndex());
+
+        if(selectedIndex == 0)
+        {
+            return;
+        }
+
+        byte prevIndex = (byte)(selectedIndex - 1);
+
+        for(int y=0; y<_board.Height; y++)
+        {
+            for(int x=0; x<_board.Width; x++)
+            {
+                if(_board.Matrix[y, x] == selectedIndex)
+                {
+                    _board.Matrix[y, x] = 255;
+                }
+            }
+        }
+
+        for (int y = 0; y < _board.Height; y++)
+        {
+            for (int x = 0; x < _board.Width; x++)
+            {
+                if (_board.Matrix[y, x] == prevIndex)
+                {
+                    _board.Matrix[y, x] = selectedIndex;
+                }
+            }
+        }
+
+        for (int y = 0; y < _board.Height; y++)
+        {
+            for (int x = 0; x < _board.Width; x++)
+            {
+                if (_board.Matrix[y, x] == 255)
+                {
+                    _board.Matrix[y, x] = prevIndex;
+                }
+            }
+        }
+
+        Color32 selectedColor = _board.Palette[selectedIndex];
+        Color32 prevColor = _board.Palette[prevIndex];
+
+        _board.Palette[selectedIndex] = prevColor;
+        _board.Palette[prevIndex] = selectedColor;
+
+        Refresh();
+
+        _paletteTransform.GetChild(prevIndex).GetComponent<Toggle>().SetIsOnWithoutNotify(true);
+    }
+
+    public void OnNext()
+    {
+        Toggle toggle = _paletteToggleGroup.ActiveToggles().FirstOrDefault();
+
+        if (toggle == null)
+        {
+            return;
+        }
+
+        byte selectedIndex = (byte)(toggle.transform.GetSiblingIndex());
+
+        if (_board.Palette.Count() - 1 == selectedIndex)
+        {
+            return;
+        }
+
+        byte nextIndex = (byte)(selectedIndex + 1);
+
+        for (int y = 0; y < _board.Height; y++)
+        {
+            for (int x = 0; x < _board.Width; x++)
+            {
+                if (_board.Matrix[y, x] == selectedIndex)
+                {
+                    _board.Matrix[y, x] = 255;
+                }
+            }
+        }
+
+        for (int y = 0; y < _board.Height; y++)
+        {
+            for (int x = 0; x < _board.Width; x++)
+            {
+                if (_board.Matrix[y, x] == nextIndex)
+                {
+                    _board.Matrix[y, x] = selectedIndex;
+                }
+            }
+        }
+
+        for (int y = 0; y < _board.Height; y++)
+        {
+            for (int x = 0; x < _board.Width; x++)
+            {
+                if (_board.Matrix[y, x] == 255)
+                {
+                    _board.Matrix[y, x] = nextIndex;
+                }
+            }
+        }
+
+        Color32 selectedColor = _board.Palette[selectedIndex];
+        Color32 nextColor = _board.Palette[nextIndex];
+
+        _board.Palette[selectedIndex] = nextColor;
+        _board.Palette[nextIndex] = selectedColor;
+
+        Refresh();
+
+        _paletteTransform.GetChild(nextIndex).GetComponent<Toggle>().SetIsOnWithoutNotify(true);
     }
 }
