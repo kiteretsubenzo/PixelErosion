@@ -56,18 +56,13 @@ public class ColorPicker : MonoBehaviour
         
     }
 
-    private void SetRGBText(byte r, byte g, byte b)
+    private void SetRGBAText(byte r, byte g, byte b, byte a)
     {
         _rInput.SetTextWithoutNotify(r + "");
         _gInput.SetTextWithoutNotify(g + "");
         _bInput.SetTextWithoutNotify(b + "");
-    }
-
-    private void SetAlphaText(byte a)
-    {
         _aInput.SetTextWithoutNotify(a + "");
-
-        (byte r, byte g, byte b) rgb = GetRGB();
+        _hexInput.SetTextWithoutNotify(ColorUtility.ToHtmlStringRGBA(new Color32(r, g, b, a)));
     }
 
     private void SetHueCursor(float h)
@@ -160,7 +155,7 @@ public class ColorPicker : MonoBehaviour
             b = 0;
         }
 
-        SetRGBText(r, g, b);
+        SetRGBAText(r, g, b, GetAlpha());
 
         Color.RGBToHSV(new Color32(r, g, b, GetAlpha()), out float h, out float s, out float v);
 
@@ -177,10 +172,37 @@ public class ColorPicker : MonoBehaviour
             a = 0;
         }
 
-        SetAlphaText(a);
-
         (byte r, byte g, byte b) rgb = GetRGB();
+
+        SetRGBAText(rgb.r, rgb.g, rgb.b, a);
+        
         _onColorChanged?.Invoke(new Color32(rgb.r, rgb.g, rgb.b, a));
+    }
+
+    public void OnChangeHex()
+    {
+        Color32 color32 = Color.clear;
+
+        string hex = _hexInput.text.Trim();
+
+        if (!hex.StartsWith("#"))
+        {
+            hex = "#" + hex;
+        }
+
+        if (ColorUtility.TryParseHtmlString(hex, out Color color))
+        {
+            color32 = color;
+        }
+
+        SetRGBAText(color32.r, color32.g, color32.b, color32.a);
+
+        Color.RGBToHSV(color32, out float h, out float s, out float v);
+
+        SetHueCursor(h);
+        SetSVCursor(s, v);
+
+        _onColorChanged?.Invoke(color32);
     }
 
     public void OnChangeSV(BaseEventData eventData)
@@ -208,9 +230,9 @@ public class ColorPicker : MonoBehaviour
         float h = GetHue();
 
         Color32 color = Color.HSVToRGB(h, u, v);
-        SetRGBText(color.r, color.g, color.b);
-
         color.a = GetAlpha();
+        
+        SetRGBAText(color.r, color.g, color.b, color.a);
 
         _onColorChanged?.Invoke(color);
     }
@@ -239,16 +261,16 @@ public class ColorPicker : MonoBehaviour
         (float s, float v) sv = GetSV();
 
         Color32 color = Color.HSVToRGB(hue, sv.s, sv.v);
-        SetRGBText(color.r, color.g, color.b);
-
         color.a = GetAlpha();
+
+        SetRGBAText(color.r, color.g, color.b, color.a);
 
         _onColorChanged?.Invoke(color);
     }
 
     public void SetColor(Color32 color)
     {
-        SetRGBText(color.r, color.g, color.b);
+        SetRGBAText(color.r, color.g, color.b, color.a);
 
         Color.RGBToHSV(color, out float h, out float s, out float v);
 
