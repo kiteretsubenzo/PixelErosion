@@ -86,7 +86,7 @@ public class GameController : MonoBehaviour
                 Debug.Log($"( {x}, {y} )");
 
                 /*
-                byte[][] map = new byte[_board.Height][];
+                byte[,] map = new byte[_board.Height][];
                 for (int i = 0; i < _board.Height; i++)
                 {
                     map[i] = new byte[_board.Width];
@@ -145,7 +145,7 @@ public class GameController : MonoBehaviour
         }
     }
 
-    public static void Apply(Board board, Image image, in byte[][] map = null)
+    public static void Apply(Board board, Image image, in byte[,] map = null)
     {
         if(image.sprite == null || image.sprite.texture == null || image.sprite.texture.width != board.Width || image.sprite.texture.height != board.Height)
         {
@@ -172,12 +172,12 @@ public class GameController : MonoBehaviour
         {
             for (int x = 0; x < board.Width; x++)
             {
-                byte paletteIndex = board.Matrix[y][x];
+                byte paletteIndex = board.Matrix[y, x];
 
                 // Unity‚ÌTexture2D‚Í¶‰ºŒ´“_‚È‚Ì‚Åã‰º”½“]
                 int textureY = board.Height - 1 - y;
 
-                if (map != null && map[y][x] == 0)
+                if (map != null && map[y, x] == 0)
                 {
                     _pixels[textureY * board.Width + x] = Color.clear;
                 }
@@ -237,13 +237,26 @@ public class GameController : MonoBehaviour
 
     private void RefreshColorAll()
     {
-        List<byte> validIndices = _board.Matrix.SelectMany(row => row).Distinct().ToList();
+        HashSet<byte> validIndexHash = new();
 
-        foreach(Transform paletteTransform in _palettes)
+        int height = _board.Matrix.GetLength(0);
+        int width = _board.Matrix.GetLength(1);
+
+        for (int y = 0; y < height; y++)
         {
-            int randomIndex = Random.Range(0, validIndices.Count);
-            byte index = validIndices[randomIndex];
-            validIndices.RemoveAt(randomIndex);
+            for (int x = 0; x < width; x++)
+            {
+                validIndexHash.Add(_board.Matrix[y, x]);
+            }
+        }
+
+        List<byte> validIndexList = validIndexHash.ToList();
+
+        foreach (Transform paletteTransform in _palettes)
+        {
+            int randomIndex = Random.Range(0, validIndexList.Count);
+            byte index = validIndexList[randomIndex];
+            validIndexList.RemoveAt(randomIndex);
 
             Palette palette = paletteTransform.GetComponent<Palette>();
             palette.SetColor(index, _board.Palette[index]);
@@ -252,7 +265,20 @@ public class GameController : MonoBehaviour
 
     private void RefreshColor(Transform paletteTransform)
     {
-        List<byte> validIndices = _board.Matrix.SelectMany(row => row).Distinct().ToList();
+        HashSet<byte> validIndexHash = new();
+
+        int height = _board.Matrix.GetLength(0);
+        int width = _board.Matrix.GetLength(1);
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                validIndexHash.Add(_board.Matrix[y, x]);
+            }
+        }
+
+        List<byte> validIndexList = validIndexHash.ToList();
 
         foreach (Transform transform in _palettes)
         {
@@ -261,20 +287,20 @@ public class GameController : MonoBehaviour
                 continue;
             }
 
-            validIndices.Remove((byte)transform.GetComponent<Palette>().Index);
+            validIndexList.Remove((byte)transform.GetComponent<Palette>().Index);
         }
 
-        validIndices.Remove((byte)paletteTransform.GetComponent<Palette>().Index);
+        validIndexList.Remove((byte)paletteTransform.GetComponent<Palette>().Index);
 
-        if (validIndices.Count == 0)
+        if (validIndexList.Count == 0)
         {
             Palette palette = paletteTransform.GetComponent<Palette>();
             palette.State = Palette.STATE.EMPTY;
         }
         else
         {
-            int randomIndex = Random.Range(0, validIndices.Count);
-            byte index = validIndices[randomIndex];
+            int randomIndex = Random.Range(0, validIndexList.Count);
+            byte index = validIndexList[randomIndex];
 
             Palette palette = paletteTransform.GetComponent<Palette>();
             palette.SetColor(index, _board.Palette[index]);

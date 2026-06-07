@@ -6,17 +6,17 @@ using UnityEngine;
 
 public class Board
 {
-    private byte[][] _matrix = null;
+    private byte[,] _matrix = null;
     private Color32[] _palette = null;
 
-    private byte[][] _map = null;
-    public byte[][] Map { get { return _map; } }
+    private byte[,] _map = null;
+    public byte[,] Map { get { return _map; } }
 
-    public byte[][] Matrix { get { return _matrix; } }
+    public byte[,] Matrix { get { return _matrix; } }
     public Color32[] Palette { get { return _palette; } }
 
-    public int Height { get { return _matrix == null ? -1 : _matrix.Length; } }
-    public int Width { get { return _matrix == null ? -1 : _matrix[0].Length; } }
+    public int Height { get { return _matrix == null ? -1 : _matrix.GetLength(0); } }
+    public int Width { get { return _matrix == null ? -1 : _matrix.GetLength(1); } }
 
     // アロケート回避用
     private Color32[] _pixels = null;
@@ -53,7 +53,7 @@ public class Board
 
     }
 
-    public Board(byte[][] matrix, Color32[] palette)
+    public Board(byte[,] matrix, Color32[] palette)
     {
         SetMatrixAndPalette(matrix, palette);
     }
@@ -185,11 +185,9 @@ public class Board
         switch (bitDepth)
         {
             case 1:
-                _matrix = new byte[height][];
+                _matrix = new byte[height, width];
                 for (int y = 0, rowOffset = 0; y < height; y++, rowOffset += stride)
                 {
-                    _matrix[y] = new byte[width];
-
                     FILTER_TYPE filterType = (FILTER_TYPE)decompressedImageBytes[rowOffset];
                     byte[] rowData = decompressedImageBytes.AsSpan(rowOffset + 1, rowDataSize).ToArray();
 
@@ -199,18 +197,16 @@ public class Board
                     {
                         byte packed = rowData[x / 8];
                         int shift = 7 - (x & 0x07);
-                        _matrix[y][x] = (byte)((packed >> shift) & 0x01);
+                        _matrix[y, x] = (byte)((packed >> shift) & 0x01);
                     }
 
                     previousRow = rowData;
                 }
                 break;
             case 2:
-                _matrix = new byte[height][];
+                _matrix = new byte[height, width];
                 for (int y = 0, rowOffset = 0; y < height; y++, rowOffset += stride)
                 {
-                    _matrix[y] = new byte[width];
-
                     FILTER_TYPE filterType = (FILTER_TYPE)decompressedImageBytes[rowOffset];
                     byte[] rowData = decompressedImageBytes.AsSpan(rowOffset + 1, rowDataSize).ToArray();
 
@@ -220,18 +216,16 @@ public class Board
                     {
                         byte packed = rowData[x / 4];
                         int shift = 6 - ((x & 0x03) * 2);
-                        _matrix[y][x] = (byte)((packed >> shift) & 0x03);
+                        _matrix[y, x] = (byte)((packed >> shift) & 0x03);
                     }
 
                     previousRow = rowData;
                 }
                 break;
             case 4:
-                _matrix = new byte[height][];
+                _matrix = new byte[height, width];
                 for (int y = 0, rowOffset = 0; y < height; y++, rowOffset += stride)
                 {
-                    _matrix[y] = new byte[width];
-
                     FILTER_TYPE filterType = (FILTER_TYPE)decompressedImageBytes[rowOffset];
                     byte[] rowData = decompressedImageBytes.AsSpan(rowOffset + 1, rowDataSize).ToArray();
 
@@ -241,18 +235,16 @@ public class Board
                     {
                         byte packed = rowData[x / 2];
                         int shift = 4 - ((x & 0x01) * 4);
-                        _matrix[y][x] = (byte)((packed >> shift) & 0x0f);
+                        _matrix[y, x] = (byte)((packed >> shift) & 0x0f);
                     }
 
                     previousRow = rowData;
                 }
                 break;
             case 8:
-                _matrix = new byte[height][];
+                _matrix = new byte[height, width];
                 for (int y = 0, rowOffset = 0; y < height; y++, rowOffset += stride)
                 {
-                    _matrix[y] = new byte[width];
-
                     FILTER_TYPE filterType = (FILTER_TYPE)decompressedImageBytes[rowOffset];
                     byte[] rowData = decompressedImageBytes.AsSpan(rowOffset + 1, rowDataSize).ToArray();
 
@@ -260,7 +252,7 @@ public class Board
 
                     for (int x = 0; x < width; x++)
                     {
-                        _matrix[y][x] = rowData[x];
+                        _matrix[y, x] = rowData[x];
                     }
 
                     previousRow = rowData;
@@ -270,11 +262,7 @@ public class Board
                 break;
         }
 
-        _map = new byte[height][];
-        for (int y = 0; y < height; y++)
-        {
-            _map[y] = new byte[width];
-        }
+        _map = new byte[height, width];
     }
 
      private (string name, byte[] data) readChunk(in byte[] bytes, uint offset)
@@ -352,7 +340,7 @@ public class Board
         SetMatrixAndPalette(board.Matrix, board.Palette);
     }
 
-    public void SetMatrixAndPalette(byte[][] matrix, Color32[] palette)
+    public void SetMatrixAndPalette(byte[,] matrix, Color32[] palette)
     {
         if (matrix == null)
         {
@@ -360,27 +348,12 @@ public class Board
         }
         else
         {
-            if (_matrix == null || _matrix.Length != matrix.Length)
+            if (_matrix == null || _matrix.GetLength(0) != matrix.GetLength(0) || _matrix.GetLength(1) != matrix.GetLength(1))
             {
-                _matrix = new byte[matrix.Length][];
+                _matrix = new byte[matrix.GetLength(0), matrix.GetLength(1)];
             }
 
-            for (int i = 0; i < matrix.Length; i++)
-            {
-                if (matrix[i] == null)
-                {
-                    _matrix[i] = null;
-                }
-                else
-                {
-                    if (_matrix[i] == null || _matrix[i].Length != matrix[i].Length)
-                    {
-                        _matrix[i] = new byte[matrix[i].Length];
-                    }
-
-                    Array.Copy(matrix[i], _matrix[i], matrix[i].Length);
-                }
-            }
+            Buffer.BlockCopy(matrix, 0, _matrix, 0, Buffer.ByteLength(matrix));
         }
 
         if (palette == null)
@@ -422,7 +395,7 @@ public class Board
         {
             for (int x = 0; x < Width; x++)
             {
-                _pixels[y * Width + x] = Palette[Matrix[y][x]];
+                _pixels[y * Width + x] = Palette[Matrix[y, x]];
             }
         }
 
@@ -443,9 +416,9 @@ public class Board
         {
             for(int i = 0; i < Width; i++)
             {
-                if(Map[j][i] == 1)
+                if(Map[j, i] == 1)
                 {
-                    _matrix[j][i] = index;
+                    _matrix[j, i] = index;
                 }
             }
         }
@@ -459,27 +432,20 @@ public class Board
             return;
         }
 
-        if(_map == null || _map.Length != Height || _map[0].Length != Width)
+        if(_map == null || _map.GetLength(0) != Height || _map.GetLength(1) != Width)
         {
-            _map = new byte[Height][];
-            for (int j = 0; j < Height; j++)
-            {
-                _map[j] = new byte[Width];
-            }
+            _map = new byte[Height, Width];
         }
         else
         {
-            for (int j = 0; j < Height; j++)
-            {
-                Array.Clear(_map[j], 0, _map[j].Length);
-            }
+            Array.Clear(_map, 0, _map.Length);
         }
 
-        int target = _matrix[y][x];
+        int target = _matrix[y, x];
 
         List<DIRECTION> stack = new List<DIRECTION>();
 
-        _map[y][x] = 1;
+        _map[y, x] = 1;
         stack.Add(DIRECTION.UP);
 
         while (true)
@@ -487,10 +453,10 @@ public class Board
             switch(stack[stack.Count - 1])
             {
                 case DIRECTION.UP:
-                    if( 0 <= y - 1 && _matrix[y - 1][x] == target && _map[y - 1][x] == 0 )
+                    if( 0 <= y - 1 && _matrix[y - 1, x] == target && _map[y - 1, x] == 0 )
                     {
                         y -= 1;
-                        _map[y][x] = 1;
+                        _map[y, x] = 1;
                         stack.Add(DIRECTION.UP);
                     }
                     else
@@ -499,10 +465,10 @@ public class Board
                     }
                     break;
                 case DIRECTION.RIGHT:
-                    if (x + 1 < Width && _matrix[y][x + 1] == target && _map[y][x + 1] == 0)
+                    if (x + 1 < Width && _matrix[y, x + 1] == target && _map[y, x + 1] == 0)
                     {
                         x += 1;
-                        _map[y][x] = 1;
+                        _map[y, x] = 1;
                         stack.Add(DIRECTION.UP);
                     }
                     else
@@ -511,10 +477,10 @@ public class Board
                     }
                     break;
                 case DIRECTION.DOWN:
-                    if (y + 1 < Height && _matrix[y + 1][x] == target && _map[y + 1][x] == 0)
+                    if (y + 1 < Height && _matrix[y + 1, x] == target && _map[y + 1, x] == 0)
                     {
                         y += 1;
-                        _map[y][x] = 1;
+                        _map[y, x] = 1;
                         stack.Add(DIRECTION.UP);
                     }
                     else
@@ -523,10 +489,10 @@ public class Board
                     }
                     break;
                 case DIRECTION.LEFT:
-                    if (0 <= x - 1 && _matrix[y][x - 1] == target && _map[y][x - 1] == 0)
+                    if (0 <= x - 1 && _matrix[y, x - 1] == target && _map[y, x - 1] == 0)
                     {
                         x -= 1;
-                        _map[y][x] = 1;
+                        _map[y, x] = 1;
                         stack.Add(DIRECTION.UP);
                     }
                     else
@@ -579,9 +545,16 @@ public class Board
 
         if (_matrix != null)
         {
-            for (int y = 0; y < _matrix.Length; y++)
+            int height = _matrix.GetLength(0);
+            int width = _matrix.GetLength(1);
+
+            for (int y = 0; y < height; y++)
             {
-                stringBuilder.Append(string.Join(" ", Array.ConvertAll(_matrix[y], value => value.ToString().PadLeft(3, ' '))));
+                for (int x = 0; x < width; x++)
+                {
+                    stringBuilder.AppendFormat("{0,4}", _matrix[y, x]);
+                }
+
                 stringBuilder.AppendLine();
             }
         }

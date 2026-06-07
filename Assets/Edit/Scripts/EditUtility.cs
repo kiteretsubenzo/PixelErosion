@@ -466,7 +466,7 @@ public class EditUtility
 
 
     // ディザあり減色
-    public static byte[][] ReduceWithDither(Texture2D sourceTexture, Color32[] palette)
+    public static byte[,] ReduceWithDither(Texture2D sourceTexture, Color32[] palette)
     {
         int width = sourceTexture.width;
         int height = sourceTexture.height;
@@ -486,12 +486,7 @@ public class EditUtility
             alphaValues[index] = sourcePixels[index].a;
         }
 
-        byte[][] matrix = new byte[height][];
-
-        for (int y = 0; y < height; y++)
-        {
-            matrix[y] = new byte[width];
-        }
+        byte[,] matrix = new byte[height, width];
 
         for (int y = 0; y < height; y++)
         {
@@ -509,7 +504,7 @@ public class EditUtility
                 byte nearestIndex = FindNearestColorIndex(oldColor, palette);
                 Color32 newColor = palette[nearestIndex];
 
-                matrix[y][x] = nearestIndex;
+                matrix[y, x] = nearestIndex;
 
                 float redError = redValues[index] - newColor.r;
                 float greenError = greenValues[index] - newColor.g;
@@ -527,23 +522,21 @@ public class EditUtility
     }
 
     // ディザなし減色
-    public static byte[][] ReduceWithoutDither(Texture2D sourceTexture, Color32[] palette)
+    public static byte[,] ReduceWithoutDither(Texture2D sourceTexture, Color32[] palette)
     {
         int width = sourceTexture.width;
         int height = sourceTexture.height;
 
         Color32[] sourcePixels = sourceTexture.GetPixels32();
 
-        byte[][] matrix = new byte[height][];
+        byte[,] matrix = new byte[height, width];
 
         for (int y = 0; y < height; y++)
         {
-            matrix[y] = new byte[width];
-
             for (int x = 0; x < width; x++)
             {
                 int index = y * width + x;
-                matrix[y][x] = FindNearestColorIndex(sourcePixels[index], palette);
+                matrix[y, x] = FindNearestColorIndex(sourcePixels[index], palette);
             }
         }
 

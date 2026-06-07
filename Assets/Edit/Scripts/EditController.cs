@@ -174,7 +174,7 @@ public class EditController : MonoBehaviour
             palette[i] = _paletteTransform.GetChild(i).GetChild(0).GetComponent<Image>().color;
         }
 
-        byte[][] matrix;
+        byte[,] matrix;
 
         if (_ditherToggle.isOn)
         {
