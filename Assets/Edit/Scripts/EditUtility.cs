@@ -492,7 +492,7 @@ public class EditUtility
         {
             for (int x = 0; x < width; x++)
             {
-                int index = y * width + x;
+                int index = (height - 1 - y) * width + x;
 
                 Color32 oldColor = new Color32(
                     (byte)Mathf.Clamp(Mathf.RoundToInt(redValues[index]), 0, 255),
@@ -535,7 +535,7 @@ public class EditUtility
         {
             for (int x = 0; x < width; x++)
             {
-                int index = y * width + x;
+                int index = (height - 1 - y) * width + x;
                 matrix[y, x] = FindNearestColorIndex(sourcePixels[index], palette);
             }
         }

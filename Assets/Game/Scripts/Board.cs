@@ -395,7 +395,10 @@ public class Board
         {
             for (int x = 0; x < Width; x++)
             {
-                _pixels[y * Width + x] = Palette[Matrix[y, x]];
+                //_pixels[y * Width + x] = Palette[Matrix[y, x]];
+                int pixelIndex = (Height - 1 - y) * Width + x;
+                _pixels[pixelIndex] = Palette[Matrix[y, x]];
+
             }
         }
 

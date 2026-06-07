@@ -3,6 +3,8 @@ using System.IO;
 using System.Linq;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 public class EditController : MonoBehaviour
@@ -90,6 +92,9 @@ public class EditController : MonoBehaviour
 
     [SerializeField]
     private ColorPicker _colorPicker;
+
+    [SerializeField]
+    private RectTransform _imageRectTransform;
 
     private Texture2D _sourceTexture = null;
     private Texture2D _indexTexture = null;
@@ -363,6 +368,54 @@ public class EditController : MonoBehaviour
         {
             int index = toggle.transform.GetSiblingIndex();
             _board.Palette[index] = color;
+
+            Refresh();
+        }
+    }
+
+    public void OnPointerDown(BaseEventData eventData)
+    {
+        setPixcel(eventData);
+    }
+
+    public void OnDrag(BaseEventData eventData)
+    {
+        setPixcel(eventData);
+    }
+
+    private void setPixcel(BaseEventData eventData)
+    {
+        Toggle toggle = _paletteToggleGroup.ActiveToggles().FirstOrDefault();
+        
+        if (toggle == null)
+        {
+            return;
+        }
+
+        int index = toggle.transform.GetSiblingIndex();
+
+        PointerEventData pointerEventData = (PointerEventData)eventData;
+
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            _imageRectTransform,
+            pointerEventData.position,
+            pointerEventData.pressEventCamera,
+            out Vector2 localPosition
+        );
+
+        Rect rect = _imageRectTransform.rect;
+
+        float u = Mathf.Clamp01((localPosition.x - rect.xMin) / rect.width);
+        float v = Mathf.Clamp01((localPosition.y - rect.yMin) / rect.height);
+
+        int x = (int)(_board.Width * u);
+        int y = (int)(_board.Height * (1.0f - v));
+
+        //Debug.Log($"u:{u}, v:{v}, x:{x}, y:{y}");
+
+        if (0 <= x && x < _board.Width && 0 <= y && y < _board.Height)
+        {
+            _board.Matrix[y, x] = (byte)index;
 
             Refresh();
         }
