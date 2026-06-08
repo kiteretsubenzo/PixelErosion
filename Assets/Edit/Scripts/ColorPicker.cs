@@ -42,6 +42,9 @@ public class ColorPicker : MonoBehaviour
     private TMP_InputField _hexInput;
 
     [SerializeField]
+    private ColorPickerEvent _onColorChangeStart;
+
+    [SerializeField]
     private ColorPickerEvent _onColorChanged;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -162,7 +165,7 @@ public class ColorPicker : MonoBehaviour
         SetHueCursor(h);
         SetSVCursor(s, v);
 
-        _onColorChanged?.Invoke(new Color32(r, g, b, GetAlpha()));
+        _onColorChangeStart?.Invoke(new Color32(r, g, b, GetAlpha()));
     }
 
     public void OnChangeAlpha()
@@ -175,8 +178,8 @@ public class ColorPicker : MonoBehaviour
         (byte r, byte g, byte b) rgb = GetRGB();
 
         SetRGBAText(rgb.r, rgb.g, rgb.b, a);
-        
-        _onColorChanged?.Invoke(new Color32(rgb.r, rgb.g, rgb.b, a));
+
+        _onColorChangeStart?.Invoke(new Color32(rgb.r, rgb.g, rgb.b, a));
     }
 
     public void OnChangeHex()
@@ -202,10 +205,22 @@ public class ColorPicker : MonoBehaviour
         SetHueCursor(h);
         SetSVCursor(s, v);
 
-        _onColorChanged?.Invoke(color32);
+        _onColorChangeStart?.Invoke(color32);
     }
 
-    public void OnChangeSV(BaseEventData eventData)
+    public void OnPointerDownSV(BaseEventData eventData)
+    {
+        Color32 color = OnChangeSV(eventData);
+        _onColorChangeStart?.Invoke(color);
+    }
+
+    public void OnDragSV(BaseEventData eventData)
+    {
+        Color32 color = OnChangeSV(eventData);
+        _onColorChanged?.Invoke(color);
+    }
+
+    private Color32 OnChangeSV(BaseEventData eventData)
     {
         PointerEventData pointerEventData = (PointerEventData)eventData;
 
@@ -234,10 +249,22 @@ public class ColorPicker : MonoBehaviour
         
         SetRGBAText(color.r, color.g, color.b, color.a);
 
+        return color;
+    }
+
+    public void OnPointerDownHue(BaseEventData eventData)
+    {
+        Color32 color = OnChangeHue(eventData);
+        _onColorChangeStart?.Invoke(color);
+    }
+
+    public void OnDragHue(BaseEventData eventData)
+    {
+        Color32 color = OnChangeHue(eventData);
         _onColorChanged?.Invoke(color);
     }
 
-    public void OnChangeHue(BaseEventData eventData)
+    private Color32 OnChangeHue(BaseEventData eventData)
     {
         PointerEventData pointerEventData = (PointerEventData)eventData;
 
@@ -265,7 +292,7 @@ public class ColorPicker : MonoBehaviour
 
         SetRGBAText(color.r, color.g, color.b, color.a);
 
-        _onColorChanged?.Invoke(color);
+        return color;
     }
 
     public void SetColor(Color32 color)

@@ -3545,6 +3545,9 @@ MonoBehaviour:
   _onColorChanged:
     m_PersistentCalls:
       m_Calls: []
+  _onColorChangeEnd:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &7804320193908812364
 GameObject:
   m_ObjectHideFlags: 0
@@ -3915,7 +3918,7 @@ MonoBehaviour:
         m_Calls:
         - m_Target: {fileID: 6742137680054869322}
           m_TargetAssemblyTypeName: ColorPicker, Assembly-CSharp
-          m_MethodName: OnChangeSV
+          m_MethodName: OnPointerDownSV
           m_Mode: 0
           m_Arguments:
             m_ObjectArgument: {fileID: 0}
@@ -3931,7 +3934,7 @@ MonoBehaviour:
         m_Calls:
         - m_Target: {fileID: 6742137680054869322}
           m_TargetAssemblyTypeName: ColorPicker, Assembly-CSharp
-          m_MethodName: OnChangeSV
+          m_MethodName: OnDragSV
           m_Mode: 0
           m_Arguments:
             m_ObjectArgument: {fileID: 0}
@@ -4149,7 +4152,7 @@ MonoBehaviour:
         m_Calls:
         - m_Target: {fileID: 6742137680054869322}
           m_TargetAssemblyTypeName: ColorPicker, Assembly-CSharp
-          m_MethodName: OnChangeHue
+          m_MethodName: OnPointerDownHue
           m_Mode: 0
           m_Arguments:
             m_ObjectArgument: {fileID: 0}
@@ -4165,7 +4168,7 @@ MonoBehaviour:
         m_Calls:
         - m_Target: {fileID: 6742137680054869322}
           m_TargetAssemblyTypeName: ColorPicker, Assembly-CSharp
-          m_MethodName: OnChangeHue
+          m_MethodName: OnDragHue
           m_Mode: 0
           m_Arguments:
             m_ObjectArgument: {fileID: 0}

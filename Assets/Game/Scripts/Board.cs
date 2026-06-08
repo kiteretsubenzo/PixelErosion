@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using UnityEngine;
 
 public class Board
@@ -585,5 +586,67 @@ public class Board
         }
 
         return stringBuilder.ToString();
+    }
+
+    public bool Equals(Board other)
+    {
+        if (ReferenceEquals(null, other))
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
+
+        // _paletteî‰är
+        if (_palette == null || other._palette == null)
+        {
+            if (_palette != other._palette)
+            {
+                return false;
+            }
+        }
+        else
+        {
+            if (!_palette.SequenceEqual(other._palette))
+            {
+                return false;
+            }
+        }
+
+        // _matrixî‰är
+        if (_matrix == null || other._matrix == null)
+        {
+            return _matrix == other._matrix;
+        }
+
+        if (_matrix.GetLength(0) != other._matrix.GetLength(0) || _matrix.GetLength(1) != other._matrix.GetLength(1))
+        {
+            return false;
+        }
+
+        return _matrix.Cast<byte>().SequenceEqual(other._matrix.Cast<byte>());
+    }
+
+    public override bool Equals(object obj)
+    {
+        return Equals(obj as Board);
+    }
+
+    public override int GetHashCode()
+    {
+        return 0;
+    }
+
+    public static bool operator ==(Board left, Board right)
+    {
+        return Equals(left, right);
+    }
+
+    public static bool operator !=(Board left, Board right)
+    {
+        return !Equals(left, right);
     }
 }

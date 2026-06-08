@@ -100,8 +100,6 @@ public class EditController : MonoBehaviour
     private Texture2D _sourceTexture = null;
     private Texture2D _indexTexture = null;
 
-    private Board _board = new Board();
-
     private List<Board> _history = new List<Board>();
     private int _historyIndex = -1;
 
@@ -193,18 +191,18 @@ public class EditController : MonoBehaviour
             matrix = EditUtility.ReduceWithoutDither(_resizedImage.sprite.texture, palette);
         }
 
-        _board.SetMatrixAndPalette(matrix, palette);
-        _board.Apply(ref _indexTexture);
-
-        EditUtility.SetImage(_reductionedImage, _indexTexture);
+        ClearHistory();
+        AddHistory(new Board(matrix, palette));
     }
 
     public void Refresh()
     {
+        Board board = _history[_historyIndex];
+
         Toggle toggle = _paletteToggleGroup.ActiveToggles().FirstOrDefault();
         int selectedIndex = toggle == null ? -1 : toggle.transform.GetSiblingIndex();
 
-        int paletteCountDelta = _board.Palette.Count() - _paletteTransform.childCount;
+        int paletteCountDelta = board.Palette.Count() - _paletteTransform.childCount;
         if(0 < paletteCountDelta)
         {
             for(int i=0; i<paletteCountDelta; i++)
@@ -221,9 +219,9 @@ public class EditController : MonoBehaviour
             }
         }
 
-        for(int i=0; i<_board.Palette.Count(); i++)
+        for(int i=0; i< board.Palette.Count(); i++)
         {
-            Color32 color = _board.Palette[i];
+            Color32 color = board.Palette[i];
             _paletteTransform.GetChild(i).GetChild(0).GetComponent<Image>().color = color;
         }
 
@@ -232,7 +230,7 @@ public class EditController : MonoBehaviour
             _paletteTransform.GetChild(selectedIndex).GetComponent<Toggle>().SetIsOnWithoutNotify(true);
         }
 
-        _board.Apply(ref _indexTexture);
+        board.Apply(ref _indexTexture);
 
         EditUtility.SetImage(_reductionedImage, _indexTexture);
     }
@@ -358,38 +356,59 @@ public class EditController : MonoBehaviour
 
     public void OnChangeColorPicker(Color32 color)
     {
-        Debug.Log(color);
-        
         Toggle toggle = _paletteToggleGroup.ActiveToggles().FirstOrDefault();
         if (toggle != null)
         {
             int index = toggle.transform.GetSiblingIndex();
-            _board.Palette[index] = color;
 
-            Refresh();
+            Color32[] palette = (Color32[])_history[_historyIndex].Palette.Clone();
+            byte[,] matrix = (byte[,])_history[_historyIndex].Matrix.Clone();
+
+            palette[index] = color;
+
+            AddHistory(new Board(matrix, palette));
+        }
+    }
+
+    public void OnOverwiteColorPicker(Color32 color)
+    {
+        Toggle toggle = _paletteToggleGroup.ActiveToggles().FirstOrDefault();
+        if (toggle != null)
+        {
+            int index = toggle.transform.GetSiblingIndex();
+
+            Color32[] palette = (Color32[])_history[_historyIndex].Palette.Clone();
+            byte[,] matrix = (byte[,])_history[_historyIndex].Matrix.Clone();
+
+            palette[index] = color;
+
+            OverwriteHistory(new Board(matrix, palette));
         }
     }
 
     public void OnPointerDown(BaseEventData eventData)
     {
-        setPixcel(eventData);
+        AddHistory(setPixcel(eventData));
     }
 
     public void OnDrag(BaseEventData eventData)
     {
-        setPixcel(eventData);
+        OverwriteHistory(setPixcel(eventData));
     }
 
-    private void setPixcel(BaseEventData eventData)
+    private Board setPixcel(BaseEventData eventData)
     {
         Toggle toggle = _paletteToggleGroup.ActiveToggles().FirstOrDefault();
         
         if (toggle == null)
         {
-            return;
+            return null;
         }
 
         int index = toggle.transform.GetSiblingIndex();
+
+        Color32[] palette = (Color32[])_history[_historyIndex].Palette.Clone();
+        byte[,] matrix = (byte[,])_history[_historyIndex].Matrix.Clone();
 
         PointerEventData pointerEventData = (PointerEventData)eventData;
 
@@ -405,20 +424,22 @@ public class EditController : MonoBehaviour
         float u = Mathf.Clamp01((localPosition.x - rect.xMin) / rect.width);
         float v = Mathf.Clamp01((localPosition.y - rect.yMin) / rect.height);
 
-        int x = (int)(_board.Width * u);
-        int y = (int)(_board.Height * (1.0f - v));
+        int x = (int)(matrix.GetLength(1) * u);
+        int y = (int)(matrix.GetLength(0) * (1.0f - v));
 
         //Debug.Log($"u:{u}, v:{v}, x:{x}, y:{y}");
 
-        if (0 <= x && x < _board.Width && 0 <= y && y < _board.Height)
+        if (0 <= x && x < matrix.GetLength(1) && 0 <= y && y < matrix.GetLength(0))
         {
-            _board.Matrix[y, x] = (byte)index;
+            matrix[y, x] = (byte)index;
 
-            Refresh();
+            return new Board(matrix, palette);
         }
+
+        return null;
     }
 
-    public void OnPrev()
+    public void OnPrevPalette()
     {
         Toggle toggle = _paletteToggleGroup.ActiveToggles().FirstOrDefault();
 
@@ -434,53 +455,56 @@ public class EditController : MonoBehaviour
             return;
         }
 
+        Color32[] palette = (Color32[])_history[_historyIndex].Palette.Clone();
+        byte[,] matrix = (byte[,])_history[_historyIndex].Matrix.Clone();
+
         byte prevIndex = (byte)(selectedIndex - 1);
 
-        for(int y=0; y<_board.Height; y++)
+        for(int y=0; y< matrix.GetLength(0); y++)
         {
-            for(int x=0; x<_board.Width; x++)
+            for(int x=0; x< matrix.GetLength(1); x++)
             {
-                if(_board.Matrix[y, x] == selectedIndex)
+                if(matrix[y, x] == selectedIndex)
                 {
-                    _board.Matrix[y, x] = 255;
+                    matrix[y, x] = 255;
                 }
             }
         }
 
-        for (int y = 0; y < _board.Height; y++)
+        for (int y = 0; y < matrix.GetLength(0); y++)
         {
-            for (int x = 0; x < _board.Width; x++)
+            for (int x = 0; x < matrix.GetLength(1); x++)
             {
-                if (_board.Matrix[y, x] == prevIndex)
+                if (matrix[y, x] == prevIndex)
                 {
-                    _board.Matrix[y, x] = selectedIndex;
+                    matrix[y, x] = selectedIndex;
                 }
             }
         }
 
-        for (int y = 0; y < _board.Height; y++)
+        for (int y = 0; y < matrix.GetLength(0); y++)
         {
-            for (int x = 0; x < _board.Width; x++)
+            for (int x = 0; x < matrix.GetLength(1); x++)
             {
-                if (_board.Matrix[y, x] == 255)
+                if (matrix[y, x] == 255)
                 {
-                    _board.Matrix[y, x] = prevIndex;
+                    matrix[y, x] = prevIndex;
                 }
             }
         }
 
-        Color32 selectedColor = _board.Palette[selectedIndex];
-        Color32 prevColor = _board.Palette[prevIndex];
+        Color32 selectedColor = palette[selectedIndex];
+        Color32 prevColor = palette[prevIndex];
 
-        _board.Palette[selectedIndex] = prevColor;
-        _board.Palette[prevIndex] = selectedColor;
+        palette[selectedIndex] = prevColor;
+        palette[prevIndex] = selectedColor;
 
-        Refresh();
+        AddHistory(new Board(matrix, palette));
 
         _paletteTransform.GetChild(prevIndex).GetComponent<Toggle>().SetIsOnWithoutNotify(true);
     }
 
-    public void OnNext()
+    public void OnNextPalette()
     {
         Toggle toggle = _paletteToggleGroup.ActiveToggles().FirstOrDefault();
 
@@ -491,68 +515,69 @@ public class EditController : MonoBehaviour
 
         byte selectedIndex = (byte)(toggle.transform.GetSiblingIndex());
 
-        if (_board.Palette.Count() - 1 == selectedIndex)
+        Color32[] palette = (Color32[])_history[_historyIndex].Palette.Clone();
+        byte[,] matrix = (byte[,])_history[_historyIndex].Matrix.Clone();
+
+        if (palette.Count() - 1 == selectedIndex)
         {
             return;
         }
 
         byte nextIndex = (byte)(selectedIndex + 1);
 
-        for (int y = 0; y < _board.Height; y++)
+        for (int y = 0; y < matrix.GetLength(0); y++)
         {
-            for (int x = 0; x < _board.Width; x++)
+            for (int x = 0; x < matrix.GetLength(1); x++)
             {
-                if (_board.Matrix[y, x] == selectedIndex)
+                if (matrix[y, x] == selectedIndex)
                 {
-                    _board.Matrix[y, x] = 255;
+                    matrix[y, x] = 255;
                 }
             }
         }
 
-        for (int y = 0; y < _board.Height; y++)
+        for (int y = 0; y < matrix.GetLength(0); y++)
         {
-            for (int x = 0; x < _board.Width; x++)
+            for (int x = 0; x < matrix.GetLength(1); x++)
             {
-                if (_board.Matrix[y, x] == nextIndex)
+                if (matrix[y, x] == nextIndex)
                 {
-                    _board.Matrix[y, x] = selectedIndex;
+                    matrix[y, x] = selectedIndex;
                 }
             }
         }
 
-        for (int y = 0; y < _board.Height; y++)
+        for (int y = 0; y < matrix.GetLength(0); y++)
         {
-            for (int x = 0; x < _board.Width; x++)
+            for (int x = 0; x < matrix.GetLength(1); x++)
             {
-                if (_board.Matrix[y, x] == 255)
+                if (matrix[y, x] == 255)
                 {
-                    _board.Matrix[y, x] = nextIndex;
+                    matrix[y, x] = nextIndex;
                 }
             }
         }
 
-        Color32 selectedColor = _board.Palette[selectedIndex];
-        Color32 nextColor = _board.Palette[nextIndex];
+        Color32 selectedColor = palette[selectedIndex];
+        Color32 nextColor = palette[nextIndex];
 
-        _board.Palette[selectedIndex] = nextColor;
-        _board.Palette[nextIndex] = selectedColor;
+        palette[selectedIndex] = nextColor;
+        palette[nextIndex] = selectedColor;
 
-        Refresh();
+        AddHistory(new Board(matrix, palette));
 
         _paletteTransform.GetChild(nextIndex).GetComponent<Toggle>().SetIsOnWithoutNotify(true);
     }
 
     public void OnAddPalette()
     {
-        Color32[] palette = _board.Palette;
+        Color32[] palette = (Color32[])_history[_historyIndex].Palette.Clone();
+        byte[,] matrix = (byte[,])_history[_historyIndex].Matrix.Clone();
+
         Array.Resize(ref palette, palette.Length + 1);
         palette[palette.Length - 1] = Color.black;
 
-        byte[,] matrix = _board.Matrix;
-
-        _board.SetMatrixAndPalette(matrix, palette);
-
-        Refresh();
+        AddHistory(new Board(matrix, palette));
     }
 
     public void OnDeletePalette()
@@ -571,10 +596,13 @@ public class EditController : MonoBehaviour
             return;
         }
 
-        List<Color32> paletteList = _board.Palette.ToList();
-        paletteList.RemoveAt(selectedIndex);
+        Color32[] palette = (Color32[])_history[_historyIndex].Palette.Clone();
+        byte[,] matrix = (byte[,])_history[_historyIndex].Matrix.Clone();
 
-        byte[,] matrix = _board.Matrix;
+        List<Color32> paletteList = palette.ToList();
+
+        paletteList.RemoveAt(selectedIndex);
+        
         for(int y=0; y<matrix.GetLength(0); y++)
         {
             for(int x=0; x<matrix.GetLength(1); x++)
@@ -586,25 +614,67 @@ public class EditController : MonoBehaviour
             }
         }
 
-        _board.SetMatrixAndPalette(matrix, paletteList.ToArray());
+        AddHistory(new Board(matrix, paletteList.ToArray()));
 
         _paletteToggleGroup.transform.GetChild(selectedIndex - 1).GetComponent<Toggle>().SetIsOnWithoutNotify(true);
+    }
+
+    public void AddHistory(Board board)
+    {
+        if(_history.Count != 0)
+        {
+            if (board == _history[_historyIndex])
+            {
+                return;
+            }
+
+            if (_historyIndex < _history.Count - 1)
+            {
+                _history.RemoveRange(_historyIndex + 1, _history.Count - _historyIndex - 1);
+            }
+        }
+        
+        _history.Add(board);
+        _historyIndex = _history.Count - 1;
 
         Refresh();
     }
 
-    public void AddHistory()
+    public void OverwriteHistory(Board board)
     {
+        if (_history.Count != 0)
+        {
+            _history[_historyIndex] = board;
+        }
 
+        Refresh();
     }
 
-    public void BackHistory()
+    public void ClearHistory()
     {
-
+        _history.Clear();
+        _historyIndex = -1;
     }
 
-    public void ForwardHistory()
+    public void OnBackHistory()
     {
+        if(_historyIndex == 0)
+        {
+            return;
+        }
 
+        _historyIndex--;
+        Refresh();
+    }
+
+    public void OnForwardHistory()
+    {
+        if(_historyIndex == _history.Count - 1)
+        {
+            return;
+        }
+
+        _historyIndex++;
+        Refresh();
     }
 }
