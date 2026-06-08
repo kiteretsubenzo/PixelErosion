@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using TMPro;
@@ -100,6 +101,9 @@ public class EditController : MonoBehaviour
     private Texture2D _indexTexture = null;
 
     private Board _board = new Board();
+
+    private List<Board> _history = new List<Board>();
+    private int _historyIndex = -1;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -536,5 +540,71 @@ public class EditController : MonoBehaviour
         Refresh();
 
         _paletteTransform.GetChild(nextIndex).GetComponent<Toggle>().SetIsOnWithoutNotify(true);
+    }
+
+    public void OnAddPalette()
+    {
+        Color32[] palette = _board.Palette;
+        Array.Resize(ref palette, palette.Length + 1);
+        palette[palette.Length - 1] = Color.black;
+
+        byte[,] matrix = _board.Matrix;
+
+        _board.SetMatrixAndPalette(matrix, palette);
+
+        Refresh();
+    }
+
+    public void OnDeletePalette()
+    {
+        Toggle toggle = _paletteToggleGroup.ActiveToggles().FirstOrDefault();
+
+        if (toggle == null)
+        {
+            return;
+        }
+
+        byte selectedIndex = (byte)(toggle.transform.GetSiblingIndex());
+
+        if(selectedIndex == 0)
+        {
+            return;
+        }
+
+        List<Color32> paletteList = _board.Palette.ToList();
+        paletteList.RemoveAt(selectedIndex);
+
+        byte[,] matrix = _board.Matrix;
+        for(int y=0; y<matrix.GetLength(0); y++)
+        {
+            for(int x=0; x<matrix.GetLength(1); x++)
+            {
+                if(selectedIndex <= matrix[y, x])
+                {
+                    matrix[y, x] -= 1;
+                }
+            }
+        }
+
+        _board.SetMatrixAndPalette(matrix, paletteList.ToArray());
+
+        _paletteToggleGroup.transform.GetChild(selectedIndex - 1).GetComponent<Toggle>().SetIsOnWithoutNotify(true);
+
+        Refresh();
+    }
+
+    public void AddHistory()
+    {
+
+    }
+
+    public void BackHistory()
+    {
+
+    }
+
+    public void ForwardHistory()
+    {
+
     }
 }
