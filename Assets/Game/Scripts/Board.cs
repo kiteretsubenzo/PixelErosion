@@ -649,4 +649,36 @@ public class Board
     {
         return !Equals(left, right);
     }
+
+    public byte[] Serialize()
+    {
+        using MemoryStream memoryStream = new MemoryStream();
+        using BinaryWriter writer = new BinaryWriter(memoryStream);
+
+        int height = _matrix.GetLength(0);
+        int width = _matrix.GetLength(1);
+
+        writer.Write(width);
+        writer.Write(height);
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                writer.Write(_matrix[y, x]);
+            }
+        }
+
+        writer.Write(_palette.Length);
+
+        foreach (Color32 color in _palette)
+        {
+            writer.Write(color.r);
+            writer.Write(color.g);
+            writer.Write(color.b);
+            writer.Write(color.a);
+        }
+
+        return memoryStream.ToArray();
+    }
 }

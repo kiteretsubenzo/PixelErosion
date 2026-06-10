@@ -286,6 +286,38 @@ public class EditController : MonoBehaviour
 #endif
     }
 
+    public void OnSave()
+    {
+        if (_history.Count == 0)
+        {
+            return;
+        }
+
+#if UNITY_EDITOR
+        string path = UnityEditor.EditorUtility.SaveFilePanel(
+            "保存",
+            "",
+            "PixelErosion.bin",
+            "bin"
+        );
+
+        if (string.IsNullOrEmpty(path))
+        {
+            Debug.Log("キャンセル");
+            return;
+        }
+
+        Board board = _history[_historyIndex];
+        byte[] bytes = board.Serialize();
+
+        File.WriteAllBytes(path, bytes);
+
+        Debug.Log($"保存完了: {path}");
+#else
+    Debug.Log("Editor以外では未対応");
+#endif
+    }
+
     public void OnChangeBrightness()
     {
         _brightnessText.text = (int)(_brightnessSlider.value) + "";
