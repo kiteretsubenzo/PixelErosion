@@ -2,14 +2,26 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using TMPro;
+using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using TMPro;
+
+// パレットを削除した後、生成しなおしてもパレット数がパレットカウントの通りにならない
+// 生成しなおしたら履歴削除
+// 現在のパレットで減色しなおしたい
+// 色を拾いたい
+// ならばペイントツールがあってもいい
 
 public class EditController : MonoBehaviour
 {
+#if UNITY_WEBGL && !UNITY_EDITOR
+    [DllImport("__Internal")]
+    private static extern void OpenImageFileDialog(string gameObjectName, string callbackMethodName);
+#endif
+
     [SerializeField]
     private TMP_Text _fileName;
 
@@ -138,6 +150,15 @@ public class EditController : MonoBehaviour
         Retouch();
     }
 
+    public void OnFileLoaded(string dataUrl)
+    {
+        Debug.Log($"Length : {dataUrl.Length}");
+
+        string head = dataUrl.Substring(0, Mathf.Min(100, dataUrl.Length));
+
+        Debug.Log(head);
+    }
+
     private void Retouch()
     {
         Texture2D retouchedTexture = EditUtility.Retouch(_sourceTexture, _brightnessSlider.value, _saturationSlider.value, _contrastSlider.value, _sharpnessSlider.value);
@@ -241,6 +262,7 @@ public class EditController : MonoBehaviour
 
     public void OnOpen()
     {
+#if UNITY_EDITOR
         string path = UnityEditor.EditorUtility.OpenFilePanelWithFilters(
             "画像を選択",
             "",
@@ -259,6 +281,9 @@ public class EditController : MonoBehaviour
         Debug.Log(path);
 
         Open(path);
+#elif UNITY_WEBGL
+        OpenImageFileDialog(gameObject.name, nameof(OnFileLoaded));
+#endif
     }
 
     public void OnChangeBrightness()
