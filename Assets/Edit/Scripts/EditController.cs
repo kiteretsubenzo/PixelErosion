@@ -9,11 +9,11 @@ using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using TMPro;
 
-// パレットを削除した後、生成しなおしてもパレット数がパレットカウントの通りにならない
-// 生成しなおしたら履歴削除
+// _sourceImage = nullのときいろんなのdisableにする
 // 現在のパレットで減色しなおしたい
 // 色を拾いたい
 // ならばペイントツールがあってもいい
+// 範囲選択で移動
 
 public class EditController : MonoBehaviour
 {
@@ -121,8 +121,8 @@ public class EditController : MonoBehaviour
     [Serializable]
     private class UploadFileData
     {
-        public string fileName;
-        public string dataUrl;
+        public string fileName = string.Empty;
+        public string dataUrl = string.Empty;
     }
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -159,21 +159,6 @@ public class EditController : MonoBehaviour
     private void CreatePalette()
     {
         Color32[] colors = EditUtility.GeneratePalette(_resizedImage.sprite.texture, int.Parse(_inputPaletteCount.text));
-
-        for (int index = _paletteTransform.childCount - 1; index >= 0; index--)
-        {
-            Destroy(_paletteTransform.GetChild(index).gameObject);
-        }
-
-        foreach (Color32 color in colors)
-        {
-            GameObject gameObject = Instantiate(_colorPrefab, _paletteTransform);
-            Toggle toggle = gameObject.GetComponent<Toggle>();
-            toggle.group = _paletteToggleGroup;
-            toggle.onValueChanged.AddListener(OnSelectPalette);
-            gameObject.transform.GetChild(0).GetComponent<Image>().color = color;
-        }
-
         Reduction(colors);
     }
 
@@ -247,7 +232,7 @@ public class EditController : MonoBehaviour
             "",
             new string[]
             {
-                "Image Files", "png,jpg,jpeg"
+                "Image / PixelErosion Files", "png,jpg,jpeg,byte,bytes"
             }
         );
 
@@ -270,6 +255,12 @@ public class EditController : MonoBehaviour
     {
         UploadFileData data = JsonUtility.FromJson<UploadFileData>(json);
 
+        if (data == null || string.IsNullOrEmpty(data.dataUrl))
+        {
+            Debug.LogError("不正なアップロードデータ");
+            return;
+        }
+
         int index = data.dataUrl.IndexOf(',');
 
         if (index < 0)
@@ -289,6 +280,10 @@ public class EditController : MonoBehaviour
         if (bytes.Length >= Board.PMB_SIGNATURE.Length && bytes.AsSpan(0, Board.PMB_SIGNATURE.Length).SequenceEqual(Board.PMB_SIGNATURE))
         {
             _fileName.SetText(path);
+
+            _sourceTexture = null;
+            ClearHistory();
+            AddHistory(new Board(bytes));
 
             return;
         }
@@ -335,8 +330,8 @@ public class EditController : MonoBehaviour
         string path = UnityEditor.EditorUtility.SaveFilePanel(
             "保存",
             "",
-            $"{fileName}.byte",
-            "byte"
+            $"{fileName}.bytes",
+            "bytes"
         );
 
         if (string.IsNullOrEmpty(path))
@@ -349,7 +344,7 @@ public class EditController : MonoBehaviour
 
 #else
         string base64 = Convert.ToBase64String(bytes);
-        DownloadFile($"{fileName}.byte", "application/octet-stream", base64);
+        DownloadFile($"{fileName}.bytes", "application/octet-stream", base64);
 #endif
 
         Debug.Log($"保存完了");
@@ -482,12 +477,20 @@ public class EditController : MonoBehaviour
 
     public void OnPointerDown(BaseEventData eventData)
     {
-        AddHistory(setPixcel(eventData));
+        Board board = setPixcel(eventData);
+        if (board != null)
+        {
+            AddHistory(setPixcel(eventData));
+        }
     }
 
     public void OnDrag(BaseEventData eventData)
     {
-        OverwriteHistory(setPixcel(eventData));
+        Board board = setPixcel(eventData);
+        if (board != null)
+        {
+            OverwriteHistory(setPixcel(eventData));
+        }
     }
 
     private Board setPixcel(BaseEventData eventData)
