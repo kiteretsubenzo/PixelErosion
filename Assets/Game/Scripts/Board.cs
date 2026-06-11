@@ -22,7 +22,11 @@ public class Board
     // アロケート回避用
     private Color32[] _pixels = null;
 
-    static readonly byte[] PNG_SIGNATURE = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
+    private static readonly int VERSION = 100;
+
+    public static readonly byte[] PMB_SIGNATURE = new byte[] { 0x50, 0x4D, 0x42 };
+    public static readonly byte[] PNG_SIGNATURE = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
+
     private enum COLOR_TYPE
     {
         USE_PALETTE = (0x01 << 0),
@@ -60,6 +64,27 @@ public class Board
     }
 
     public Board(byte[] bytes)
+    {
+        if (bytes == null)
+        {
+            throw new ArgumentNullException(nameof(bytes));
+        }
+
+        if (bytes.Length >= PMB_SIGNATURE.Length && bytes.AsSpan(0, PMB_SIGNATURE.Length).SequenceEqual(PMB_SIGNATURE))
+        {
+            Deserialize(bytes);
+            return;
+        }
+        else if (bytes.Length >= PNG_SIGNATURE.Length && bytes.AsSpan(0, PNG_SIGNATURE.Length).SequenceEqual(PNG_SIGNATURE))
+        {
+            OpenPng(bytes);
+            return;
+        }
+
+        throw new Exception("未対応のファイル形式です");
+    }
+
+    public void OpenPng(byte[] bytes)
     {
         uint offset = 0;
 
@@ -649,11 +674,14 @@ public class Board
     {
         return !Equals(left, right);
     }
-
+    
     public byte[] Serialize()
     {
         using MemoryStream memoryStream = new MemoryStream();
         using BinaryWriter writer = new BinaryWriter(memoryStream);
+
+        writer.Write(PMB_SIGNATURE);
+        writer.Write(System.Text.Encoding.ASCII.GetBytes($"{VERSION:D5}"));
 
         int height = _matrix.GetLength(0);
         int width = _matrix.GetLength(1);
@@ -680,5 +708,58 @@ public class Board
         }
 
         return memoryStream.ToArray();
+    }
+
+    public void Deserialize(byte[] bytes)
+    {
+        using MemoryStream memoryStream = new MemoryStream(bytes);
+        using BinaryReader reader = new BinaryReader(memoryStream);
+
+        byte[] signature = reader.ReadBytes(PMB_SIGNATURE.Length);
+
+        if (!signature.SequenceEqual(PMB_SIGNATURE))
+        {
+            throw new Exception("PMBファイルではありません");
+        }
+
+        string versionText = System.Text.Encoding.ASCII.GetString(reader.ReadBytes(5));
+        int version = int.Parse(versionText);
+
+        if (version > VERSION)
+        {
+            throw new Exception($"未対応バージョンです ({version})");
+        }
+
+        int width = reader.ReadInt32();
+        int height = reader.ReadInt32();
+
+        _matrix = new byte[height, width];
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                _matrix[y, x] = reader.ReadByte();
+            }
+        }
+
+        int paletteLength = reader.ReadInt32();
+
+        _palette = new Color32[paletteLength];
+
+        for (int i = 0; i < paletteLength; i++)
+        {
+            _palette[i] = new Color32(
+                reader.ReadByte(),
+                reader.ReadByte(),
+                reader.ReadByte(),
+                reader.ReadByte()
+            );
+        }
+
+        if (memoryStream.Position != memoryStream.Length)
+        {
+            Debug.LogWarning("未読データが残っています");
+        }
     }
 }

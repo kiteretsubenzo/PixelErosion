@@ -20,6 +20,9 @@ public class EditController : MonoBehaviour
 #if UNITY_WEBGL && !UNITY_EDITOR
     [DllImport("__Internal")]
     private static extern void OpenImageFileDialog(string gameObjectName, string callbackMethodName);
+
+    [DllImport("__Internal")]
+    private static extern void DownloadFile(string fileName, string mimeType, string base64);
 #endif
 
     [SerializeField]
@@ -115,6 +118,13 @@ public class EditController : MonoBehaviour
     private List<Board> _history = new List<Board>();
     private int _historyIndex = -1;
 
+    [Serializable]
+    private class UploadFileData
+    {
+        public string fileName;
+        public string dataUrl;
+    }
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -125,38 +135,6 @@ public class EditController : MonoBehaviour
     void Update()
     {
         
-    }
-    
-    private void Open(string path)
-    {
-        byte[] fileBytes = File.ReadAllBytes(path);
-
-        _sourceTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-
-        if (!_sourceTexture.LoadImage(fileBytes))
-        {
-            DestroyImmediate(_sourceTexture);
-            Debug.LogError("画像の読み込みに失敗しました: " + path);
-            return;
-        }
-
-        _fileName.SetText(path);
-
-        Debug.Log($"読み込み成功: {_sourceTexture.width} x {_sourceTexture.height}");
-
-        float aspectRatio = (float)_sourceTexture.width / _sourceTexture.height;
-        _inputHeight.SetTextWithoutNotify((int)(float.Parse(_inputWidth.text) / aspectRatio) + "");
-
-        Retouch();
-    }
-
-    public void OnFileLoaded(string dataUrl)
-    {
-        Debug.Log($"Length : {dataUrl.Length}");
-
-        string head = dataUrl.Substring(0, Mathf.Min(100, dataUrl.Length));
-
-        Debug.Log(head);
     }
 
     private void Retouch()
@@ -260,6 +238,7 @@ public class EditController : MonoBehaviour
     /// ///////////////////////////////////////////////////////////
     /// </summary>
 
+
     public void OnOpen()
     {
 #if UNITY_EDITOR
@@ -280,10 +259,60 @@ public class EditController : MonoBehaviour
 
         Debug.Log(path);
 
-        Open(path);
+        OnBytesLoaded(File.ReadAllBytes(path), path);
 #elif UNITY_WEBGL
         OpenImageFileDialog(gameObject.name, nameof(OnFileLoaded));
 #endif
+    }
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+    public void OnFileLoaded(string json)
+    {
+        UploadFileData data = JsonUtility.FromJson<UploadFileData>(json);
+
+        int index = data.dataUrl.IndexOf(',');
+
+        if (index < 0)
+        {
+            Debug.LogError("不正なDataURL");
+            return;
+        }
+
+        byte[] bytes = Convert.FromBase64String(data.dataUrl.Substring(index + 1));
+
+        OnBytesLoaded(bytes, data.fileName);
+    }
+#endif
+
+    public void OnBytesLoaded(byte[] bytes, string path)
+    {
+        if (bytes.Length >= Board.PMB_SIGNATURE.Length && bytes.AsSpan(0, Board.PMB_SIGNATURE.Length).SequenceEqual(Board.PMB_SIGNATURE))
+        {
+            _fileName.SetText(path);
+
+            return;
+        }
+        else
+        {
+            _sourceTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+
+            if (!_sourceTexture.LoadImage(bytes))
+            {
+                DestroyImmediate(_sourceTexture);
+                Debug.LogError("画像の読み込みに失敗しました: " + path);
+                return;
+            }
+
+            _fileName.SetText(path);
+
+            Debug.Log($"読み込み成功: {_sourceTexture.width} x {_sourceTexture.height}");
+
+            float aspectRatio = (float)_sourceTexture.width / _sourceTexture.height;
+            _inputHeight.SetTextWithoutNotify((int)(float.Parse(_inputWidth.text) / aspectRatio) + "");
+
+            Retouch();
+            return;
+        }
     }
 
     public void OnSave()
@@ -293,12 +322,21 @@ public class EditController : MonoBehaviour
             return;
         }
 
+        Board board = _history[_historyIndex];
+        byte[] bytes = board.Serialize();
+
+        string fileName = Path.GetFileNameWithoutExtension(_fileName.text);
+        if(fileName == "")
+        {
+            fileName = "PixelErosion";
+        }
+
 #if UNITY_EDITOR
         string path = UnityEditor.EditorUtility.SaveFilePanel(
             "保存",
             "",
-            "PixelErosion.bin",
-            "bin"
+            $"{fileName}.byte",
+            "byte"
         );
 
         if (string.IsNullOrEmpty(path))
@@ -307,15 +345,14 @@ public class EditController : MonoBehaviour
             return;
         }
 
-        Board board = _history[_historyIndex];
-        byte[] bytes = board.Serialize();
-
         File.WriteAllBytes(path, bytes);
 
-        Debug.Log($"保存完了: {path}");
 #else
-    Debug.Log("Editor以外では未対応");
+        string base64 = Convert.ToBase64String(bytes);
+        DownloadFile($"{fileName}.byte", "application/octet-stream", base64);
 #endif
+
+        Debug.Log($"保存完了");
     }
 
     public void OnChangeBrightness()
