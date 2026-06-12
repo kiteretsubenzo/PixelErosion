@@ -261,15 +261,9 @@ public class EditController : MonoBehaviour
             return;
         }
 
-        int index = data.dataUrl.IndexOf(',');
-
-        if (index < 0)
-        {
-            Debug.LogError("不正なDataURL");
-            return;
-        }
-
-        byte[] bytes = Convert.FromBase64String(data.dataUrl.Substring(index + 1));
+        // すでにJS側でコンマ（ヘッダー）は綺麗に削られているので、そのままデコードするだけ！
+        // C#側でのメモリコピー（Substring）が完全にゼロになり、iPhoneのメモリに優しくなります。
+        byte[] bytes = Convert.FromBase64String(data.dataUrl);
 
         OnBytesLoaded(bytes, data.fileName);
     }
