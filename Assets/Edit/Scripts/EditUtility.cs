@@ -18,16 +18,16 @@ public class EditUtility
             float sourceYMin = destinationY * scaleY;
             float sourceYMax = (destinationY + 1) * scaleY;
 
-            int sourceYStart = Mathf.FloorToInt(sourceYMin);
-            int sourceYEnd = Mathf.CeilToInt(sourceYMax);
+            int sourceYStart = Mathf.Clamp(Mathf.FloorToInt(sourceYMin), 0, sourceTexture.height - 1);
+            int sourceYEnd = Mathf.Clamp(Mathf.CeilToInt(sourceYMax), 0, sourceTexture.height);
 
             for (int destinationX = 0; destinationX < destinationWidth; destinationX++)
             {
                 float sourceXMin = destinationX * scaleX;
                 float sourceXMax = (destinationX + 1) * scaleX;
 
-                int sourceXStart = Mathf.FloorToInt(sourceXMin);
-                int sourceXEnd = Mathf.CeilToInt(sourceXMax);
+                int sourceXStart = Mathf.Clamp(Mathf.FloorToInt(sourceXMin), 0, sourceTexture.width - 1);
+                int sourceXEnd = Mathf.Clamp(Mathf.CeilToInt(sourceXMax), 0, sourceTexture.width);
 
                 float red = 0;
                 float green = 0;
@@ -57,6 +57,10 @@ public class EditUtility
 
                         float weight = overlapX * overlapY;
 
+                        if(sourcePixels.Length <= rowOffset + sourceX)
+                        {
+                            Debug.Log("error");
+                        }
                         Color32 color = sourcePixels[rowOffset + sourceX];
 
                         red += color.r * weight;

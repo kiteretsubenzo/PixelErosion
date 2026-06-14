@@ -420,6 +420,11 @@ public class EditController : MonoBehaviour
         CreatePalette();
     }
 
+    public void OnRegenerate()
+    {
+
+    }
+
     public void OnSelectPalette(bool isOn)
     {
         if(isOn == false)
@@ -767,5 +772,12 @@ public class EditController : MonoBehaviour
 
         _historyIndex++;
         Refresh();
+    }
+
+    public void OnPlay()
+    {
+        SceneTransitionManager.Instance.PushScene("Game", new Dictionary<string, object>() {
+            { "board", _history[_historyIndex] }
+        });
     }
 }

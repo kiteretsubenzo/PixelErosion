@@ -41,7 +41,14 @@ public class GameController : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        _board = new Board(_problemSource.bytes);
+        if (SceneTransitionManager.Instance.TryGet("board", out Board board))
+        {
+            _board = board;
+        }
+        else
+        {
+            _board = new Board(_problemSource.bytes);
+        }
         _boardSub = new Board();
         //Debug.Log(_board);
 
@@ -339,6 +346,11 @@ public class GameController : MonoBehaviour
         }
 
         return Vector2.zero;
+    }
+
+    public void OnBack()
+    {
+        SceneTransitionManager.Instance.PopScene();
     }
 
     public void OnDestroy()
