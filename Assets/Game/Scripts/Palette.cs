@@ -148,6 +148,13 @@ public class Palette : MonoBehaviour
         _cursor.transform.position = position + new Vector2(cursorSize.x * 0.5f + 16.0f, cursorSize.y * 0.5f + 16.0f);
     }
 
+    public Vector2 GetCursorPosition()
+    {
+        Vector2 cursorSize = _cursorRectTransform.rect.size;
+
+        return (Vector2)_cursor.transform.position - new Vector2(cursorSize.x * 0.5f + 16.0f, cursorSize.y * 0.5f + 16.0f);
+    }
+
     public void OnPointerDown(BaseEventData eventData)
     {
         if(_index < 0)

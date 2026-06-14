@@ -74,7 +74,7 @@ public class GameController : MonoBehaviour
             // Board上で離したか
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 _boardRectTransform,
-                GetPointerPosition(),
+                _selectedColor.GetComponent<Palette>().GetCursorPosition(),
                 null,
                 out Vector2 localPosition
             );
@@ -91,28 +91,6 @@ public class GameController : MonoBehaviour
                 int y = (int)(_boardRectTransform.rect.height - (localPosition.y + _boardRectTransform.rect.height / 2.0f));
 
                 Debug.Log($"( {x}, {y} )");
-
-                /*
-                byte[,] map = new byte[_board.Height][];
-                for (int i = 0; i < _board.Height; i++)
-                {
-                    map[i] = new byte[_board.Width];
-                }
-
-                if (_board.CalcAreaMap(x, y, ref map))
-                {
-                    System.Text.StringBuilder stringBuilder = new System.Text.StringBuilder();
-                    for (int yy = 0; yy < map.Length; yy++)
-                    {
-                        stringBuilder.AppendLine(string.Join(" ", map[yy]));
-                    }
-                    Debug.Log(stringBuilder.ToString());
-                }
-                else
-                {
-                    Debug.Log("null");
-                }
-                */
 
                 // 塗る
                 // バックアップとる
@@ -142,12 +120,6 @@ public class GameController : MonoBehaviour
         }
         else
         {
-            /*
-            Transform cursorTransform = _selectedColor.GetChild(0);
-            RectTransform cursorRectTransform = cursorTransform.GetComponent<RectTransform>();
-            Vector2 cursorSize = cursorRectTransform.rect.size;
-            cursorTransform.position = GetPointerPosition() + new Vector2(cursorSize.x * 0.5f + 16.0f, cursorSize.y * 0.5f + 16.0f);
-            */
             _selectedColor.GetComponent<Palette>().SetCursorPosition(GetPointerPosition());
         }
     }

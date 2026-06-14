@@ -162,7 +162,7 @@ public class EditController : MonoBehaviour
         Reduction(colors);
     }
 
-    private void Reduction(Color32[] palette)
+    private void Reduction(Color32[] palette, bool clearHistory = true)
     {
         byte[,] matrix;
 
@@ -175,7 +175,10 @@ public class EditController : MonoBehaviour
             matrix = EditUtility.ReduceWithoutDither(_resizedImage.sprite.texture, palette);
         }
 
-        ClearHistory();
+        if (clearHistory == true)
+        {
+            ClearHistory();
+        }
         AddHistory(new Board(matrix, palette));
     }
 
@@ -422,7 +425,14 @@ public class EditController : MonoBehaviour
 
     public void OnRegenerate()
     {
+        List<Color32> colorList = new List<Color32>();
 
+        foreach(Transform paletteTransform in _paletteTransform)
+        {
+            colorList.Add(paletteTransform.GetChild(0).GetComponent<Image>().color);
+        }
+
+        Reduction(colorList.ToArray(), false);
     }
 
     public void OnSelectPalette(bool isOn)
